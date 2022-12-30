@@ -10,6 +10,6 @@ extendedKeyUsage = serverAuth
 
 [ alt_names ]
 DNS.1 = grumpy
-DNS.2 = grumpy.default
-DNS.3 = grumpy.default.svc
-DNS.4 = grumpy.default.svc.cluster.local
+DNS.2 = grumpy.grumpy
+DNS.3 = grumpy.grumpy.svc
+DNS.4 = grumpy.grumpy.svc.cluster.local
