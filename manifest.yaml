@@ -3,35 +3,36 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grumpy
-  namespace: default
   labels:
-    name: grumpy
+    app: grumpy
 spec:
   ports:
   - name: webhook
     port: 443
     targetPort: 8080
   selector:
-    name: grumpy 
+    app: grumpy 
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grumpy
-  namespace: default
   labels:
     name: grumpy
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: grumpy
   template:
     metadata:
       name: grumpy 
       labels:
-        name: grumpy
+        app: grumpy
     spec:
       containers:
         - name: webhook
-          image: pipo02mix/grumpy:1.0.0
+          image: mtr.devops.telekom.de/eumel8/grumpy:instance_migration
           imagePullPolicy: Always
           args:
             - -alsologtostderr
@@ -60,16 +61,18 @@ spec:
         - name: logs
           emptyDir: {}
 ---
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: grumpy
 webhooks:
   - name: grumpy.pipo02mix.org
+    admissionReviewVersions:
+    - v1
     clientConfig:
       service:
         name: grumpy
-        namespace: default
+        namespace: grumpy
         path: "/validate"
       caBundle: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVGekNDQXY4Q0ZILzRBaFRRa2gvN2l2UHJrR0F2a1JRQkRES0FNQTBHQ1NxR1NJYjNEUUVCRFFVQU1JSEgKTVFzd0NRWURWUVFHRXdKRVJURVFNQTRHQTFVRUNBd0hRMjlzYjJkdVpURVFNQTRHQTFVRUJ3d0hRMjlzYjJkdQpaVEVQTUEwR0ExVUVFUXdHTkRJME1qUXlNUlF3RWdZRFZRUUpEQXRJWVd4c2J5QWdNVFl5TVRFVE1CRUdBMVVFCkNnd0taMmxoYm5SemQyRnliVEVaTUJjR0ExVUVDd3dRUlcxdmFua2dSR1Z3WVhKMGJXVnVkREVXTUJRR0ExVUUKQXd3TloybGhiblJ6ZDJGeWJTNXBiekVsTUNNR0NTcUdTSWIzRFFFSkFSWVdibTh0Y21Wd2JIbEFaMmxoYm5SegpkMkZ5YlM1cGJ6QWVGdzB5TWpFeU16QXlNREF5TWpoYUZ3MHlNekF4TWpreU1EQXlNamhhTUlISE1Rc3dDUVlEClZRUUdFd0pFUlRFUU1BNEdBMVVFQ0F3SFEyOXNiMmR1WlRFUU1BNEdBMVVFQnd3SFEyOXNiMmR1WlRFUE1BMEcKQTFVRUVRd0dOREkwTWpReU1SUXdFZ1lEVlFRSkRBdElZV3hzYnlBZ01UWXlNVEVUTUJFR0ExVUVDZ3dLWjJsaApiblJ6ZDJGeWJURVpNQmNHQTFVRUN3d1FSVzF2YW5rZ1JHVndZWEowYldWdWRERVdNQlFHQTFVRUF3d05aMmxoCmJuUnpkMkZ5YlM1cGJ6RWxNQ01HQ1NxR1NJYjNEUUVKQVJZV2JtOHRjbVZ3YkhsQVoybGhiblJ6ZDJGeWJTNXAKYnpDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTUJjcDlrMk5HcjV4MWRQYXU2awppTFBNc0ZCNm5wTTIyczVqWjlZdnRTKzJkWnM5VVJrZFpWNnV5Z0w3clcwZVdGWjZiWTJnZTBudllBaWlBeE9KClJWVElhWGJVTXBCdXVCU1MvQ21iRENJUHY1WFRkNENiWElqVm45M1UrSWpuNE51bklwbjMvYnZZN0pWcTBMNm8KbjIybUs2NmRKUnBYdEpoU2hLeW9mN2poaDNzelFRemJGL0RPRHlRbTJmcXpmUytqUjNzb2c1TkdyS29HdGIzdApvZnBmNjhYbkVGUE9QMDRrVFZDTGtOV05MeUFmYm8reTRrSHhhN01zd3QzQ3JLMEpwdFhEdWRCd0FYOHZFd3lTCmxHV1JsajhjOHRYS2RzTHRka1lHRFFTL0dlYW1kZ0w3U0FQQ2txUUc4VE9vN0VsSVAvUFIrWktyVFVQTDB2dmIKUkNNQ0F3RUFBVEFOQmdrcWhraUc5dzBCQVEwRkFBT0NBUUVBUm9zOFZZVCtzUEplQ1hyUEdyUGdrZ0RKVmh3VApXdDRTUDZKczVUa01FVnkreDd3cVpXSHFhMm02ODVFOXNJWVUxM2lCUWFRd2J0S24xeU9ycVlyRXFjdGJCRmtCCjVTdUVySWpDWDNwZDFvem4xRFNubGo4OHMxamtmY2I0T2xkelRmTGJNZjVKQ01LL3A5QWVpUy9pbS92b0lEVVMKSlJhR3Zad0xWL2ljYlVFeGkzUG9tQ090ZVFTb1VqK0w4bURmaFp1a0F5em1FVHpZWVJxZTlIVmJ1MFRjTGxyUwo1bExQc1h6YXNta2JEdXh0YkpjNk9ZWE1TTXQwOFYzWE1Gc3B2LzdBMTBSVXBXVHBmdDdYQ1JDUWdVQ2V0WmxECmZia3djODUvV00yNFlHRVZOa3IvdVdrQWZSNGFCM0hGRTE4NnpCVWF4RVFmaGRMQ0NJSjhxNm5qS3c9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=="
     rules:
@@ -78,3 +81,4 @@ webhooks:
         apiVersions: ["v1"]
         resources: ["pods"]
     failurePolicy: Ignore
+    sideEffects: None
