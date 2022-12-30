@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang/glog"
 	"k8s.io/api/admission/v1"
-	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,7 +43,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	pod := v1.Pod{}
+	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
 		return
