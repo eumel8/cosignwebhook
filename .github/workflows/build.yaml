@@ -1,0 +1,26 @@
+name: Docker Image CI
+
+on:
+  push:
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login Build Push
+        run: |
+          docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}" ${MTR}
+          # export TAG=`git describe --match=$(git rev-parse --short=8 HEAD) --always --dirty --abbrev=8`
+          ## fix for "layer does not exists" error
+          ## https://github.com/moby/moby/issues/37965 
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          export DOCKER_BUILDKIT=1
+          docker build -f Dockerfile.rhel8 -t ${MTR}/${REPO}/${IMAGE}:${VERSION} .
+          docker push ${MTR}/${REPO}/${IMAGE}:${VERSION}
+        env:
+          DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
+          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+          MTR: mtr.devops.telekom.de
+          REPO: eumel8
+          IMAGE: grumpy
