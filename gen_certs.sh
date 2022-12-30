@@ -14,7 +14,7 @@ openssl req -new -x509 -key certs/ca.key -out certs/ca.crt -config certs/ca_conf
 openssl genrsa -out certs/grumpy-key.pem 2048
 
 # CREATE A CSR FROM THE CONFIGURATION FILE AND OUR PRIVATE KEY
-openssl req -new -key certs/grumpy-key.pem -subj "/CN=grumpy.default.svc" -out grumpy.csr -config certs/grumpy_config.txt
+openssl req -new -key certs/grumpy-key.pem -subj "/CN=grumpy.grumpy.svc" -out grumpy.csr -config certs/grumpy_config.txt
 
 # CREATE THE CERT SIGNING THE CSR WITH THE CA CREATED BEFORE
 openssl x509 -req -in grumpy.csr -CA certs/ca.crt -CAkey certs/ca.key -CAcreateserial -out certs/grumpy-crt.pem
