@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.19-stretch AS build-env
+FROM golang:1.19 AS build-env
 RUN mkdir -p /go/src/github.com/pipo02mix/grumpy
 WORKDIR /go/src/github.com/pipo02mix/grumpy
 COPY  . .
