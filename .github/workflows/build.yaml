@@ -16,7 +16,7 @@ jobs:
           ## https://github.com/moby/moby/issues/37965 
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           export DOCKER_BUILDKIT=1
-          docker build -f Dockerfile.rhel8 -t ${MTR}/${REPO}/${IMAGE}:${VERSION} .
+          docker build -f Dockerfile -t ${MTR}/${REPO}/${IMAGE}:${VERSION} .
           docker push ${MTR}/${REPO}/${IMAGE}:${VERSION}
         env:
           DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
