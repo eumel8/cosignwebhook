@@ -7,12 +7,12 @@ import (
 	"net/http"
 
 	"github.com/golang/glog"
-	"k8s.io/api/admission/v1"
+	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//GrumpyServerHandler listen to admission requests and serve responses
+// GrumpyServerHandler listen to admission requests and serve responses
 type GrumpyServerHandler struct {
 }
 
@@ -66,7 +66,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 	//glog.Infof("Ready to write reponse ...")
-	glog.Infof("Ready to write reponse: ", resp)
+	glog.Infof("Ready to write reponse: ", arResponse)
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
