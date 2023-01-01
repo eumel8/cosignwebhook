@@ -56,9 +56,9 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		Response: &v1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
-				Status:  "Failure",
+				Status: "Failure",
 				Message: "Keep calm and not add more crap in the cluster!",
-				Code: 500,
+				Code: 403,
 			},
 		},
 	}
@@ -67,8 +67,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
-	//glog.Infof("Ready to write reponse ...")
-	glog.Infof("Ready to write reponse: ", arResponse)
+	glog.Infof("Ready to write reponse ...")
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
