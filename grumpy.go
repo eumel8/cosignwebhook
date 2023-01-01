@@ -56,7 +56,9 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		Response: &v1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
+				Status:  "Failure",
 				Message: "Keep calm and not add more crap in the cluster!",
+				Code: 500,
 			},
 		},
 	}
