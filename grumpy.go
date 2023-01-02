@@ -46,7 +46,6 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	raw := arRequest.Request.Object.Raw
 	uid := arRequest.Request.UID
-	glog.Info("Raw object %s", uid)
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
@@ -68,6 +67,8 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	resp, err := json.Marshal(arResponse)
+
+	glog.Info("Resp object ", resp)
 	if err != nil {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
