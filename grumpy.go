@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -21,7 +21,7 @@ type GrumpyServerHandler struct {
 func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
@@ -45,7 +45,6 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	//uid := arRequest.Request.UID
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
@@ -56,8 +55,13 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	arResponse := v1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AdmissionReview",
+			APIVersion: "admission.k8s.io/v1",
+		},
 		Response: &v1.AdmissionResponse{
 			Allowed: false,
+			UID:     arRequest.Request.UID,
 			Result: &metav1.Status{
 				Status:  "Failure",
 				Message: "Keep calm and not add more crap in the cluster!",
@@ -65,9 +69,11 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-	arResponse.Response.UID = arRequest.Request.UID
-	arResponse.APIVersion = "admission.k8s.io/v1"
-	arResponse.Kind = "AdmissionReview"
+	/*
+		arResponse.Response.UID = arRequest.Request.UID
+		arResponse.APIVersion = "admission.k8s.io/v1"
+		arResponse.Kind = "AdmissionReview"
+	*/
 	resp, err := json.Marshal(arResponse)
 
 	sresp := string(resp)
