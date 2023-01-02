@@ -69,16 +69,16 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-	/*
-		arResponse.Response.UID = arRequest.Request.UID
-		arResponse.APIVersion = "admission.k8s.io/v1"
-		arResponse.Kind = "AdmissionReview"
-	*/
 	resp, err := json.Marshal(arResponse)
 
-	sresp := string(resp)
+	annotations := make(map[string]string)
+	for k, v := range pod.Annotations {
+		annotations[k] = v
+	}
+	cosignPubKey := annotations["kubernetes.io/psp"]
+	// sresp := string(cosignPubKey)
 
-	glog.Info("Resp object ", sresp)
+	glog.Info("Resp object ", cosignPubKey)
 	if err != nil {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
