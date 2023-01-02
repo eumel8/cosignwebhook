@@ -45,7 +45,8 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	glog.Info("Raw object", raw)
+	fmt.Print(raw)
+	// glog.Info("Raw object %s", convert(raw))
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
@@ -59,9 +60,9 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		Response: &v1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
-				Status: "Failure",
+				Status:  "Failure",
 				Message: "Keep calm and not add more crap in the cluster!",
-				Code: 403,
+				Code:    403,
 			},
 		},
 	}
