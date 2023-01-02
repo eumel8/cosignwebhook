@@ -13,6 +13,8 @@ import (
 )
 
 // GrumpyServerHandler listen to admission requests and serve responses
+// build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
+// generate-certs.sh --service grumpy --webhook grumpy --namespace grumpy --secret grumpy
 type GrumpyServerHandler struct {
 }
 
@@ -43,6 +45,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
+	glog.Info("Raw object", raw)
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
