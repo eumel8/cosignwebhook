@@ -45,7 +45,8 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	glog.Info("Raw object %s", string(raw))
+	uid := arRequest.Request.UID
+	glog.Info("Raw object %s", uid)
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
