@@ -45,7 +45,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	uid := arRequest.Request.UID
+	//uid := arRequest.Request.UID
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
@@ -58,7 +58,6 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	arResponse := v1.AdmissionReview{
 		Response: &v1.AdmissionResponse{
 			Allowed: false,
-			UID:     uid,
 			Result: &metav1.Status{
 				Status:  "Failure",
 				Message: "Keep calm and not add more crap in the cluster!",
@@ -66,6 +65,9 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
+	arResponse.Response.UID = arRequest.Request.UID
+	arResponse.APIVersion = "admission.k8s.io/v1"
+	arResponse.Kind = "AdmissionReview"
 	resp, err := json.Marshal(arResponse)
 
 	sresp := string(resp)
