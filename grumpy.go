@@ -91,6 +91,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		annotations[k] = v
 
 		glog.Info("Annotation loop: ", pod.Annotations)
+	}
 
 	image := pod.Spec.Containers[0].Image
 	// refImage := name.Reference{name.Tag.String(image)}
