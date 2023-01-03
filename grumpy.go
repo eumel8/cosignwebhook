@@ -103,7 +103,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
 	*/
-	glog.Info("Annotation: ", annotations["caas.telekom.de/cosign"])
+	glog.Info("Annotation: ", pod.Annotations["caas.telekom.de/cosign"])
 	cosignPubKey := []byte(annotations["caas.telekom.de/cosign"])
 	// cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
 	// cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
