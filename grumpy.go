@@ -93,7 +93,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
 	*/
-	cosignPubKey := annotations["kubernetes.io/psp"]
+	cosignPubKey := annotations["caas.telekom.de/cosign"]
 	cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
 	// unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
 	// checkOpts.SigVerifier, err = signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
