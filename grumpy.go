@@ -78,6 +78,11 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := json.Marshal(arResponse)
 
+	if err != nil {
+		glog.Errorf("Can't encode response: %v", err)
+		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+	}
+
 	annotations := make(map[string]string)
 	for k, v := range pod.Annotations {
 		annotations[k] = v
@@ -95,13 +100,16 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	*/
 	cosignPubKey := annotations["caas.telekom.de/cosign"]
 	cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
+	if err != nil {
+		glog.Errorf("Error LoadPublicKey: %v", err)
+	}
 	// unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
 	// checkOpts.SigVerifier, err = signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
 
 	cosignVerify, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
 		refImage,
 		&cosign.CheckOpts{
-			SigVerifier:    cosignLoadKey,
+			SigVerifier: cosignLoadKey,
 			//IgnoreSCT:      true,
 			//SkipTlogVerify: true,
 		})
@@ -109,8 +117,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	// SigVerifier:    signature.Verifier{signature.PublicKeyProvider: unmarshalPubKey},
 	glog.Info("Resp object ", cosignVerify, bundleVerified)
 	if err != nil {
-		glog.Errorf("Can't encode response: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		glog.Errorf("Error VerifyImageSignatures: %v", err)
 	}
 	glog.Infof("Ready to write reponse ...")
 	if _, err := w.Write(resp); err != nil {
