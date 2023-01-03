@@ -106,6 +106,9 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	// cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
 
 	unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
+	if err != nil {
+		glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
+	}
 	cosignLoadKey, err := signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadPublicKey: %v", err)
