@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,12 @@ import (
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/sigstore/cosign/v2/pkg/cosign"
+
+	//"github.com/sigstore/sigstore/pkg/signature"
+	"github.com/sigstore/cosign/pkg/signature"
 )
 
 // GrumpyServerHandler listen to admission requests and serve responses
@@ -75,10 +82,32 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	for k, v := range pod.Annotations {
 		annotations[k] = v
 	}
-	cosignPubKey := annotations["kubernetes.io/psp"]
-	// sresp := string(cosignPubKey)
+	image := pod.Spec.Containers[0].Image
+	// refImage := name.Reference{name.Tag.String(image)}
+	refImage, err := name.ParseReference(image)
+	/*
+				imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
+			for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
+				imagePullSecrets = append(imagePullSecrets, s.Name)
+			}
 
-	glog.Info("Resp object ", cosignPubKey)
+		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
+	*/
+	cosignPubKey := annotations["kubernetes.io/psp"]
+	cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
+	// unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
+	// checkOpts.SigVerifier, err = signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
+
+	cosignVerify, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
+		refImage,
+		&cosign.CheckOpts{
+			SigVerifier:    cosignLoadKey,
+			IgnoreSCT:      true,
+			SkipTlogVerify: true,
+		})
+
+	// SigVerifier:    signature.Verifier{signature.PublicKeyProvider: unmarshalPubKey},
+	glog.Info("Resp object ", cosignVerify, bundleVerified)
 	if err != nil {
 		glog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
