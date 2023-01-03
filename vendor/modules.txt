@@ -17,12 +17,6 @@ github.com/cyberphone/json-canonicalization/go/src/webpki.org/jsoncanonicalizer
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/digitorus/pkcs7 v0.0.0-20221212123742-001c36b64ec3
-## explicit; go 1.13
-github.com/digitorus/pkcs7
-# github.com/digitorus/timestamp v0.0.0-20221019182153-ef3b63b79b31
-## explicit; go 1.16
-github.com/digitorus/timestamp
 # github.com/docker/cli v20.10.20+incompatible
 ## explicit
 github.com/docker/cli/cli/config
@@ -301,6 +295,10 @@ github.com/pelletier/go-toml/v2/internal/tracker
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
+# github.com/prometheus/client_golang v1.14.0
+## explicit; go 1.17
+# github.com/rogpeppe/go-internal v1.8.1
+## explicit; go 1.16
 # github.com/sassoftware/relic v0.0.0-20210427151427-dfb082b79b74
 ## explicit; go 1.15
 github.com/sassoftware/relic/lib/pkcs7
@@ -313,30 +311,30 @@ github.com/secure-systems-lab/go-securesystemslib/dsse
 # github.com/shibumi/go-pathspec v1.3.0
 ## explicit; go 1.17
 github.com/shibumi/go-pathspec
-# github.com/sigstore/cosign v0.0.0-00010101000000-000000000000 => ./cosign
-## explicit; go 1.19
-github.com/sigstore/cosign/pkg/signature
-# github.com/sigstore/cosign/v2 v2.0.0-rc.0
+# github.com/sigstore/cosign v1.13.1
 ## explicit; go 1.18
-github.com/sigstore/cosign/v2/cmd/cosign/cli/fulcio/fulcioverifier/ctl
-github.com/sigstore/cosign/v2/cmd/cosign/cli/fulcio/fulcioverifier/ctutil
-github.com/sigstore/cosign/v2/pkg/blob
+github.com/sigstore/cosign/cmd/cosign/cli/fulcio/fulcioverifier/ctl
+github.com/sigstore/cosign/cmd/cosign/cli/fulcio/fulcioverifier/ctutil
+github.com/sigstore/cosign/pkg/blob
+github.com/sigstore/cosign/pkg/cosign
+github.com/sigstore/cosign/pkg/cosign/bundle
+github.com/sigstore/cosign/pkg/cosign/git
+github.com/sigstore/cosign/pkg/cosign/git/github
+github.com/sigstore/cosign/pkg/cosign/git/gitlab
+github.com/sigstore/cosign/pkg/cosign/kubernetes
+github.com/sigstore/cosign/pkg/cosign/pkcs11key
+github.com/sigstore/cosign/pkg/oci
+github.com/sigstore/cosign/pkg/oci/empty
+github.com/sigstore/cosign/pkg/oci/internal/signature
+github.com/sigstore/cosign/pkg/oci/layout
+github.com/sigstore/cosign/pkg/oci/remote
+github.com/sigstore/cosign/pkg/oci/signed
+github.com/sigstore/cosign/pkg/oci/static
+github.com/sigstore/cosign/pkg/signature
+github.com/sigstore/cosign/pkg/types
+# github.com/sigstore/cosign/v2 v2.0.0-rc.0 => github.com/sigstore/cosign v1.12.1
+## explicit; go 1.18
 github.com/sigstore/cosign/v2/pkg/cosign
-github.com/sigstore/cosign/v2/pkg/cosign/bundle
-github.com/sigstore/cosign/v2/pkg/cosign/env
-github.com/sigstore/cosign/v2/pkg/cosign/git
-github.com/sigstore/cosign/v2/pkg/cosign/git/github
-github.com/sigstore/cosign/v2/pkg/cosign/git/gitlab
-github.com/sigstore/cosign/v2/pkg/cosign/kubernetes
-github.com/sigstore/cosign/v2/pkg/cosign/pkcs11key
-github.com/sigstore/cosign/v2/pkg/oci
-github.com/sigstore/cosign/v2/pkg/oci/empty
-github.com/sigstore/cosign/v2/pkg/oci/internal/signature
-github.com/sigstore/cosign/v2/pkg/oci/layout
-github.com/sigstore/cosign/v2/pkg/oci/remote
-github.com/sigstore/cosign/v2/pkg/oci/signed
-github.com/sigstore/cosign/v2/pkg/oci/static
-github.com/sigstore/cosign/v2/pkg/types
 # github.com/sigstore/rekor v1.0.1
 ## explicit; go 1.18
 github.com/sigstore/rekor/pkg/generated/client
@@ -367,9 +365,6 @@ github.com/sigstore/sigstore/pkg/signature/kms
 github.com/sigstore/sigstore/pkg/signature/options
 github.com/sigstore/sigstore/pkg/signature/payload
 github.com/sigstore/sigstore/pkg/tuf
-# github.com/sigstore/timestamp-authority v0.2.0
-## explicit; go 1.19
-github.com/sigstore/timestamp-authority/pkg/verification
 # github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13
 github.com/sirupsen/logrus
@@ -950,4 +945,3 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# github.com/sigstore/cosign => ./cosign

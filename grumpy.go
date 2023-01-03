@@ -102,8 +102,8 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		refImage,
 		&cosign.CheckOpts{
 			SigVerifier:    cosignLoadKey,
-			IgnoreSCT:      true,
-			SkipTlogVerify: true,
+			//IgnoreSCT:      true,
+			//SkipTlogVerify: true,
 		})
 
 	// SigVerifier:    signature.Verifier{signature.PublicKeyProvider: unmarshalPubKey},
