@@ -1049,7 +1049,7 @@ func VerifyRFC3161Timestamp(sig oci.Signature, tsaCerts *x509.CertPool) (*timest
 		tsBytes = rawSig
 	}
 
-	err = tsaverification.VerifyTimestampResponse(ts.SignedRFC3161Timestamp, bytes.NewReader(tsBytes), tsaCerts)
+	_,err = tsaverification.VerifyTimestampResponse(ts.SignedRFC3161Timestamp, bytes.NewReader(tsBytes), tsaCerts)
 	if err != nil {
 		return nil, fmt.Errorf("unable to verify TimestampResponse: %w", err)
 	}
