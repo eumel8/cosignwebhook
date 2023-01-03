@@ -18,6 +18,7 @@ import (
 
 	//"github.com/sigstore/sigstore/pkg/signature"
 	// "github.com/sigstore/cosign/pkg/signature"
+	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 )
 
@@ -100,14 +101,15 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
 	*/
-	cosignPubKey := annotations["caas.telekom.de/cosign"]
+	cosignPubKey := []byte(annotations["caas.telekom.de/cosign"])
 	// cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
-	cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
+	// cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
+
+	unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
+	cosignLoadKey, err := signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadPublicKey: %v", err)
 	}
-	// unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
-	// checkOpts.SigVerifier, err = signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
 
 	cosignVerify, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
 		refImage,
