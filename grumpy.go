@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +17,8 @@ import (
 	"github.com/sigstore/cosign/v2/pkg/cosign"
 
 	//"github.com/sigstore/sigstore/pkg/signature"
-	"github.com/sigstore/cosign/pkg/signature"
+	// "github.com/sigstore/cosign/pkg/signature"
+	"github.com/sigstore/sigstore/pkg/signature"
 )
 
 // GrumpyServerHandler listen to admission requests and serve responses
@@ -99,7 +101,8 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
 	*/
 	cosignPubKey := annotations["caas.telekom.de/cosign"]
-	cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
+	// cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
+	cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadPublicKey: %v", err)
 	}
