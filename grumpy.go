@@ -100,7 +100,6 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
-	glog.Info("Annotation loop1: ", pubKey)
 	// envs := make(map[string]string)
 	// envs := make(map[int]string)
 	// for k, v := range pod.Spec.Containers[0].Env {
@@ -151,9 +150,11 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			//IgnoreSCT:      true,
 			//SkipTlogVerify: true,
 		})
-
+	for k, v := range cosignVerify {
+		glog.Errorf("Signatures %s %s", k, v)
+	}
 	// SigVerifier:    signature.Verifier{signature.PublicKeyProvider: unmarshalPubKey},
-	glog.Info("Resp object ", cosignVerify, bundleVerified)
+	glog.Info("Resp bundleVerified: ", bundleVerified)
 	if err != nil {
 		glog.Errorf("Error VerifyImageSignatures: %v", err)
 	}
