@@ -11,6 +11,7 @@ import (
 	"github.com/golang/glog"
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -90,6 +91,11 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 
+	accessor := meta.NewAccessor()
+	accessor.GetAnnotations(pod)
+	aNotes, err := accessor.Annotations
+
+	glog.Info("Annotation loop0: ", aNotes)
 	glog.Info("Annotation loop1: ", pod.Labels)
 	annotations := make(map[string]string)
 	for k, v := range pod.Annotations {
