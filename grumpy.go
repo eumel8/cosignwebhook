@@ -126,11 +126,25 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if len(pubKey) == 0 {
+		glog.Errorf("No pubKey env in %s/%s: %v", pod.Namespace, pod.Name, err)
+		if _, err := w.Write(respNotOK); err != nil {
+			glog.Errorf("Can't write NotOK response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write OK response: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
 	image := pod.Spec.Containers[0].Image
 	refImage, err := name.ParseReference(image)
 
 	if err != nil {
 		glog.Errorf("Error ParseRef image: %v", err)
+		if _, err := w.Write(respNotOK); err != nil {
+			glog.Errorf("Can't write NotOK response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write OK response: %v", err), http.StatusInternalServerError)
+		}
+		return
 	}
 	/*
 			imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
@@ -144,14 +158,25 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
 		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
+		if _, err := w.Write(respNotOK); err != nil {
+			glog.Errorf("Can't write NotOK response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write OK response: %v", err), http.StatusInternalServerError)
+		}
+		return
 	}
 
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadECDSAVerifier %s/%s:: %v", pod.Namespace, pod.Name, err)
+		if _, err := w.Write(respNotOK); err != nil {
+			glog.Errorf("Can't write NotOK response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write OK response: %v", err), http.StatusInternalServerError)
+		}
+		return
 	}
 
-	_, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
+	_, bundleVerified, err := cosign.VerifyImageSignatures(
+		context.Background(),
 		refImage,
 		&cosign.CheckOpts{
 			SigVerifier: cosignLoadKey,
@@ -160,6 +185,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			//SkipTlogVerify: true,
 		})
 
+	// this is always false,
 	glog.Info("Resp bundleVerified: ", bundleVerified)
 
 	// Verify Image failed, needs to reject pod start
@@ -174,6 +200,6 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Can't write OK response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write OK response: %v", err), http.StatusInternalServerError)
 		}
-		return
 	}
+	return
 }
