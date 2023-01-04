@@ -91,13 +91,20 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	glog.Info("Annotation loop0: ", string(body))
-	glog.Info("Annotation loop1: ", pod.Labels)
-	annotations := make(map[string]string)
-	for k, v := range pod.Annotations {
-		annotations[k] = v
+	pubKey := ""
+	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
+		value := pod.Spec.Containers[0].Env[i].Value
+		if pod.Spec.Containers[0].Env[i].Name == "COSIGNPUBKEY" {
+			pubKey = value
+		}
 
-		glog.Info("Annotation loop2: ", pod.GetAnnotations())
 	}
+	glog.Info("Annotation loop1: ", pubKey)
+	// envs := make(map[string]string)
+	// envs := make(map[int]string)
+	// for k, v := range pod.Spec.Containers[0].Env {
+	// 	envs[k] = v
+	//}
 
 	image := pod.Spec.Containers[0].Image
 	// refImage := name.Reference{name.Tag.String(image)}
@@ -110,8 +117,8 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
 	*/
-	glog.Info("Annotation: ", pod.Annotations["caas.telekom.de/cosign"])
-	cosignPubKey := []byte(annotations["caas.telekom.de/cosign"])
+	// glog.Info("Annotation: ", pod.Annotations["caas.telekom.de/cosign"])
+	cosignPubKey := []byte(pubKey)
 	// cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
 	// cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
 
