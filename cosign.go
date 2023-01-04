@@ -29,6 +29,9 @@ const (
 	cosignEnvVar  = "COSIGNPUBKEY"
 )
 
+//var requestUid = v1.AdmissionReview{Request: &v1.AdmissionRequest{UID: ""}}
+//var requestUid = v1.AdmissionReview.Request.UID
+
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
@@ -64,7 +67,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	rUID := arRequest.Request.UID
+	// requestUid := arRequest.Request.UID
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
@@ -83,7 +86,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("No pubKey env in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
-		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", rUID))
+		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -100,7 +103,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		glog.Errorf("Error ParseRef image: %v", err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", rUID))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -123,7 +126,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
 		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", rUID))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -138,7 +141,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", rUID))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -166,7 +169,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	// Verify Image failed, needs to reject pod start
 	if err != nil {
 		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", rUID))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -176,7 +179,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
-		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", rUID))
+		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -188,7 +191,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func admissionResponse(admissionCode int32, admissionPermissions bool, admissionStatus string, admissionMessage string, rUID v1.AdmissionReview) v1.AdmissionReview {
+func admissionResponse(admissionCode int32, admissionPermissions bool, admissionStatus string, admissionMessage string, ar *v1.AdmissionReview) v1.AdmissionReview {
 	return v1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       admissionKind,
@@ -196,7 +199,7 @@ func admissionResponse(admissionCode int32, admissionPermissions bool, admission
 		},
 		Response: &v1.AdmissionResponse{
 			Allowed: admissionPermissions,
-			UID:     rUID.Request.UID,
+			UID:     ar.Request.UID,
 			Result: &metav1.Status{
 				Status:  admissionStatus,
 				Message: admissionMessage,
