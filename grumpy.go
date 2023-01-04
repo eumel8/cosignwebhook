@@ -18,7 +18,7 @@ import (
 
 	//"github.com/sigstore/sigstore/pkg/signature"
 	// "github.com/sigstore/cosign/pkg/signature"
-	"github.com/sigstore/sigstore/pkg/cryptoutils"
+
 	"github.com/sigstore/sigstore/pkg/signature"
 )
 
@@ -118,15 +118,16 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
 	*/
 	// glog.Info("Annotation: ", pod.Annotations["caas.telekom.de/cosign"])
-	cosignPubKey := []byte(pubKey)
+	// HERE cosignPubKey := []byte(pubKey)
 	// cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
 	// cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
-
-	unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
-	if err != nil {
-		glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
-	}
-	cosignLoadKey, err := signature.LoadVerifier(unmarshalPubKey, crypto.SHA256)
+	/*
+		unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
+		if err != nil {
+			glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
+		}
+	*/
+	cosignLoadKey, err := signature.LoadVerifier(pubKey, crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadPublicKey: %v", err)
 	}
