@@ -90,7 +90,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 
-	glog.Info("Annotation loop1: ", pod.Annotations)
+	glog.Info("Annotation loop1: ", pod)
 	annotations := make(map[string]string)
 	for k, v := range pod.Annotations {
 		annotations[k] = v
