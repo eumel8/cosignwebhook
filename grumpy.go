@@ -22,6 +22,10 @@ import (
 	"github.com/sigstore/sigstore/pkg/signature"
 )
 
+const (
+	cosignAnnotation = "caas.telekom.de/cosign"
+)
+
 // GrumpyServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service grumpy --webhook grumpy --namespace grumpy --secret grumpy
@@ -90,7 +94,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	for k, v := range pod.Annotations {
 		annotations[k] = v
 
-		glog.Info("Annotation loop: ", pod.DeepCopy().GetAnnotations())
+		glog.Info("Annotation loop2: ", pod.GetAnnotations())
 	}
 
 	image := pod.Spec.Containers[0].Image
