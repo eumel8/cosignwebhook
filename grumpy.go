@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,7 +19,7 @@ import (
 
 	//"github.com/sigstore/sigstore/pkg/signature"
 	// "github.com/sigstore/cosign/pkg/signature"
-
+	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 )
 
@@ -90,7 +91,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 
-	glog.Info("Annotation loop0: ", string(body))
+	// glog.Info("Annotation loop0: ", string(body))
 	pubKey := ""
 	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
 		value := pod.Spec.Containers[0].Env[i].Value
@@ -127,11 +128,22 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
 		}
 	*/
-	cosignLoadKey, err := signature.LoadVerifier(pubKey, crypto.SHA256)
+	// cosignLoadKey, err := signature.LoadVerifier(pubKey, crypto.SHA256)
+	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		glog.Errorf("Error LoadPublicKey: %v", err)
+		glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
+	}
+	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
+	if err != nil {
+		glog.Errorf("Error LoadECDSAVerifier: %v", err)
 	}
 
+	/*
+		cosignLoadKey, err := signature.PublicKeyProvider{pubKey,crypto.SHA256}
+		if err != nil {
+			glog.Errorf("Error LoadPublicKey: %v", err)
+		}
+	*/
 	cosignVerify, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
 		refImage,
 		&cosign.CheckOpts{
