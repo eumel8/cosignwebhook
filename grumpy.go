@@ -92,7 +92,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	accessor := meta.NewAccessor()
-	aNotes, err := accessor.Annotations()
+	aNotes, err := accessor.Annotations(pod.DeepCopy())
 	// aNotes, err := accessor.Annotations
 
 	glog.Info("Annotation loop0: ", aNotes)
