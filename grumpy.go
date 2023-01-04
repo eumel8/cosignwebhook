@@ -22,12 +22,15 @@ import (
 )
 
 const (
-	admissionApi     = "admission.k8s.io/v1"
-	admissionKind    = "AdmissionReview"
-	cosignEnvVar     = "COSIGNPUBKEY"
-	admissionStatus  = "Failure"
-	admissionMessage = "Cosign image verification failed"
-	admissionCode    = 403
+	admissionApi          = "admission.k8s.io/v1"
+	admissionKind         = "AdmissionReview"
+	admissionStatusNotOK  = "Failure"
+	admissionMessageNotOK = "Cosign image verification failed"
+	admissionCodeNotOK    = 403
+	admissionStatusOK     = "Success"
+	admissionMessageOK    = "Cosign image verified"
+	admissionCodeOK       = 200
+	cosignEnvVar          = "COSIGNPUBKEY"
 )
 
 // GrumpyServerHandler listen to admission requests and serve responses
@@ -50,6 +53,7 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	glog.Info("Received request")
 
+	// Url path of admission
 	if r.URL.Path != "/validate" {
 		glog.Error("no validate")
 		http.Error(w, "no validate", http.StatusBadRequest)
@@ -68,11 +72,9 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Error("error deserializing pod")
 		return
 	}
-	if pod.Name == "smooth-app" {
-		return
-	}
 
-	arResponse := v1.AdmissionReview{
+	// AdmissionReview definition
+	arResponseNotOK := v1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       admissionKind,
 			APIVersion: admissionApi,
@@ -81,17 +83,39 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			Allowed: false,
 			UID:     arRequest.Request.UID,
 			Result: &metav1.Status{
-				Status:  admissionStatus,
-				Message: admissionMessage,
-				Code:    admissionCode,
+				Status:  admissionStatusNotOK,
+				Message: admissionMessageNotOK,
+				Code:    admissionCodeNotOK,
 			},
 		},
 	}
-	resp, err := json.Marshal(arResponse)
+	arResponseOK := v1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       admissionKind,
+			APIVersion: admissionApi,
+		},
+		Response: &v1.AdmissionResponse{
+			Allowed: true,
+			UID:     arRequest.Request.UID,
+			Result: &metav1.Status{
+				Status:  admissionStatusOK,
+				Message: admissionMessageOK,
+				Code:    admissionCodeOK,
+			},
+		},
+	}
+	respNotOK, err := json.Marshal(arResponseNotOK)
 
 	if err != nil {
-		glog.Errorf("Can't encode response: %v", err)
-		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		glog.Errorf("Can't encode NotOK response: %v", err)
+		http.Error(w, fmt.Sprintf("could not encode NotOK response: %v", err), http.StatusInternalServerError)
+	}
+
+	respOK, err := json.Marshal(arResponseOK)
+
+	if err != nil {
+		glog.Errorf("Can't encode OK response: %v", err)
+		http.Error(w, fmt.Sprintf("could not encode OK response: %v", err), http.StatusInternalServerError)
 	}
 
 	pubKey := ""
@@ -109,32 +133,22 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("Error ParseRef image: %v", err)
 	}
 	/*
-				imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
-			for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
-				imagePullSecrets = append(imagePullSecrets, s.Name)
-			}
-
-		cosignPubKey := []byte(annotations["kubernetes.io/psp"])
-	*/
-	// glog.Info("Annotation: ", pod.Annotations["caas.telekom.de/cosign"])
-	// HERE cosignPubKey := []byte(pubKey)
-	// cosignLoadKey, err := signature.LoadPublicKey(context.Background(), cosignPubKey)
-	// cosignLoadKey, err := signature.LoadVerifier(cosignPubKey, crypto.SHA256)
-	/*
-		unmarshalPubKey, err := cryptoutils.UnmarshalPEMToPublicKey(cosignPubKey)
-		if err != nil {
-			glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
+			imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
+		for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
+			imagePullSecrets = append(imagePullSecrets, s.Name)
 		}
+
+
 	*/
 
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Name, pod.Namespace, err)
+		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
 	}
 
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
-		glog.Errorf("Error LoadECDSAVerifier %s/%s:: %v", pod.Name, pod.Namespace, err)
+		glog.Errorf("Error LoadECDSAVerifier %s/%s:: %v", pod.Namespace, pod.Name, err)
 	}
 
 	_, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
@@ -150,12 +164,16 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	// Verify Image failed, needs to reject pod start
 	if err != nil {
-		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Name, pod.Namespace, err)
-		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
-			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
+		if _, err := w.Write(respNotOK); err != nil {
+			glog.Errorf("Can't write NotOK response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write NotOK response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
+		if _, err := w.Write(respOK); err != nil {
+			glog.Errorf("Can't write OK response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write OK response: %v", err), http.StatusInternalServerError)
+		}
 		return
 	}
 }
