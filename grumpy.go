@@ -17,14 +17,17 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/sigstore/cosign/v2/pkg/cosign"
 
-	//"github.com/sigstore/sigstore/pkg/signature"
-	// "github.com/sigstore/cosign/pkg/signature"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 )
 
 const (
-	cosignAnnotation = "caas.telekom.de/cosign"
+	admissionApi     = "admission.k8s.io/v1"
+	admissionKind    = "AdmissionReview"
+	cosignEnvVar     = "COSIGNPUBKEY"
+	admissionStatus  = "Failure"
+	admissionMessage = "Cosign image verification failed"
+	admissionCode    = 403
 )
 
 // GrumpyServerHandler listen to admission requests and serve responses
@@ -71,16 +74,16 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	arResponse := v1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "AdmissionReview",
-			APIVersion: "admission.k8s.io/v1",
+			Kind:       admissionKind,
+			APIVersion: admissionApi,
 		},
 		Response: &v1.AdmissionResponse{
 			Allowed: false,
 			UID:     arRequest.Request.UID,
 			Result: &metav1.Status{
-				Status:  "Failure",
-				Message: "Keep calm and not add more crap in the cluster!",
-				Code:    403,
+				Status:  admissionStatus,
+				Message: admissionMessage,
+				Code:    admissionCode,
 			},
 		},
 	}
@@ -91,24 +94,20 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 
-	// glog.Info("Annotation loop0: ", string(body))
 	pubKey := ""
 	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
 		value := pod.Spec.Containers[0].Env[i].Value
-		if pod.Spec.Containers[0].Env[i].Name == "COSIGNPUBKEY" {
+		if pod.Spec.Containers[0].Env[i].Name == cosignEnvVar {
 			pubKey = value
 		}
-
 	}
-	// envs := make(map[string]string)
-	// envs := make(map[int]string)
-	// for k, v := range pod.Spec.Containers[0].Env {
-	// 	envs[k] = v
-	//}
 
 	image := pod.Spec.Containers[0].Image
-	// refImage := name.Reference{name.Tag.String(image)}
 	refImage, err := name.ParseReference(image)
+
+	if err != nil {
+		glog.Errorf("Error ParseRef image: %v", err)
+	}
 	/*
 				imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
 			for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
@@ -127,40 +126,36 @@ func (gs *GrumpyServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
 		}
 	*/
-	// cosignLoadKey, err := signature.LoadVerifier(pubKey, crypto.SHA256)
+
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		glog.Errorf("Error UnmarshalPEMToPublicKey: %v", err)
-	}
-	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
-	if err != nil {
-		glog.Errorf("Error LoadECDSAVerifier: %v", err)
+		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Name, pod.Namespace, err)
 	}
 
-	/*
-		cosignLoadKey, err := signature.PublicKeyProvider{pubKey,crypto.SHA256}
-		if err != nil {
-			glog.Errorf("Error LoadPublicKey: %v", err)
-		}
-	*/
-	cosignVerify, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
+	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
+	if err != nil {
+		glog.Errorf("Error LoadECDSAVerifier %s/%s:: %v", pod.Name, pod.Namespace, err)
+	}
+
+	_, bundleVerified, err := cosign.VerifyImageSignatures(context.Background(),
 		refImage,
 		&cosign.CheckOpts{
 			SigVerifier: cosignLoadKey,
+			// add settings for cosign 2.0
 			//IgnoreSCT:      true,
 			//SkipTlogVerify: true,
 		})
-	for k, v := range cosignVerify {
-		glog.Errorf("Signatures %s %s", k, v)
-	}
-	// SigVerifier:    signature.Verifier{signature.PublicKeyProvider: unmarshalPubKey},
+
 	glog.Info("Resp bundleVerified: ", bundleVerified)
+
+	// Verify Image failed, needs to reject pod start
 	if err != nil {
-		glog.Errorf("Error VerifyImageSignatures: %v", err)
-	}
-	glog.Infof("Ready to write reponse ...")
-	if _, err := w.Write(resp); err != nil {
-		glog.Errorf("Can't write response: %v", err)
-		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Name, pod.Namespace, err)
+		if _, err := w.Write(resp); err != nil {
+			glog.Errorf("Can't write response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		}
+	} else {
+		return
 	}
 }
