@@ -18,9 +18,9 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	//"github.com/google/go-containerregistry/pkg/authn"
-	//"github.com/google/go-containerregistry/pkg/authn/k8schain"
+	"github.com/google/go-containerregistry/pkg/authn/k8schain"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	ociremote "github.com/sigstore/cosign/pkg/oci/remote"
-	//"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sigstore/cosign/v2/pkg/cosign"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
@@ -170,7 +170,9 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions()}
+	kc, err := k8schain.NewInCluster(context.Context, k8schain.Options{})
+	// remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions()}
+	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
 
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
