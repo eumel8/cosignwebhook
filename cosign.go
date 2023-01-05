@@ -170,7 +170,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kc, err := k8schain.NewInCluster(context.Context, k8schain.Options{})
+	kc, err := k8schain.NewInCluster(context.Background(), k8schain.Options{})
 	// remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions()}
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
 
