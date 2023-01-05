@@ -170,6 +170,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// kc, err := k8schain.NewInCluster(context.WithValue(), k8schain.Options{})
 	kc, err := k8schain.NewInCluster(context.TODO(), k8schain.Options{})
 	if err != nil {
 		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
