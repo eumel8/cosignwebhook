@@ -25,6 +25,8 @@ import (
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
+
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -171,7 +173,17 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// kc, err := k8schain.NewInCluster(context.WithValue(), k8schain.Options{})
-	kc, err := k8schain.NewInCluster(context.TODO(), k8schain.Options{})
+	//var k8sconfig *rest.Config
+	//k8sconfig, _ = rest.InClusterConfig()
+	// clientset, _ := kubernetes.NewForConfig(k8sconfig)
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules,
+		&clientcmd.ConfigOverrides{
+			CurrentContext: "",
+		}).RawConfig()
+	currentContext := config.CurrentContext
+
+	kc, err := k8schain.NewInCluster(currentContext, k8schain.Options{})
 	if err != nil {
 		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
