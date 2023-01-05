@@ -171,6 +171,20 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	kc, err := k8schain.NewInCluster(context.Background(), k8schain.Options{})
+	if err != nil {
+		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
+		if err != nil {
+			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		}
+		if _, err := w.Write(resp); err != nil {
+			glog.Errorf("Can't write response: %v", err)
+			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		}
+		return
+	}
+
 	// remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions()}
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
 
