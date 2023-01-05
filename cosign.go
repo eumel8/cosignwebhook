@@ -170,7 +170,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kc, err := k8schain.NewInCluster(context.Background(), k8schain.Options{})
+	kc, err := k8schain.NewInCluster(context.TODO(), k8schain.Options{})
 	if err != nil {
 		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
