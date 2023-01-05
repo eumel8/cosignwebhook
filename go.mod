@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/golang/glog v1.0.0
 	github.com/google/go-containerregistry v0.12.1
+	github.com/sigstore/cosign v1.13.1
 	github.com/sigstore/cosign/v2 v2.0.0-rc.0
 	github.com/sigstore/sigstore v1.5.0
 	k8s.io/api v0.26.0
@@ -69,7 +70,6 @@ require (
 	github.com/sassoftware/relic v0.0.0-20210427151427-dfb082b79b74 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
-	github.com/sigstore/cosign v1.13.1 // indirect
 	github.com/sigstore/rekor v1.0.1 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/afero v1.9.2 // indirect

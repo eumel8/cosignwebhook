@@ -17,6 +17,10 @@ import (
 	//	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	//"github.com/google/go-containerregistry/pkg/authn"
+	//"github.com/google/go-containerregistry/pkg/authn/k8schain"
+	ociremote "github.com/sigstore/cosign/pkg/oci/remote"
+	//"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sigstore/cosign/v2/pkg/cosign"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
@@ -115,6 +119,19 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	/*
+		imagePullSecrets := make([]string, 0, len(pod.Spec.Template.Spec.ImagePullSecrets))
+		for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
+			imagePullSecrets = append(imagePullSecrets, s.Name)
+		}
+		ns := getNamespace(ctx, pod.Namespace)
+		opt := k8schain.Options{
+			Namespace:          ns,
+			ServiceAccountName: pod.Spec.Template.Spec.ServiceAccountName,
+			ImagePullSecrets:   imagePullSecrets,
+		}
+
+	*/
+	/*
 			imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
 		for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
 			imagePullSecrets = append(imagePullSecrets, s.Name)
@@ -153,11 +170,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	remoteOpts := []ociremote.Option{}
+
 	_, bundleVerified, err := cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,
 		&cosign.CheckOpts{
-			SigVerifier: cosignLoadKey,
+			RegistryClientOpts: remoteOpts,
+			SigVerifier:        cosignLoadKey,
 			// add settings for cosign 2.0
 			//IgnoreSCT:      true,
 			//SkipTlogVerify: true,
