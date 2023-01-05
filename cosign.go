@@ -170,9 +170,9 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteOpts := []ociremote.Option{}
+	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions()}
 
-	_, bundleVerified, err := cosign.VerifyImageSignatures(
+	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,
 		&cosign.CheckOpts{
@@ -184,7 +184,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		})
 
 	// this is always false,
-	glog.Info("Resp bundleVerified: ", bundleVerified)
+	// glog.Info("Resp bundleVerified: ", bundleVerified)
 
 	// Verify Image failed, needs to reject pod start
 	if err != nil {
