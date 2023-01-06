@@ -130,17 +130,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		ServiceAccountName: pod.Spec.ServiceAccountName,
 		ImagePullSecrets:   imagePullSecrets,
 	}
-	glog.Info("Received request: ", imagePullSecrets)
-	glog.Info("Received opt: ", opt)
-
-	/*
-			imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
-		for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
-			imagePullSecrets = append(imagePullSecrets, s.Name)
-		}
-
-
-	*/
 
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
@@ -172,12 +161,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//var k8sconfig *rest.Config
-	// k8sconfig, _ = rest.InClusterConfig()
-	//clientset, _ := kubernetes.NewForConfig(k8sconfig)
-
-	//currentContext,_ := clientset.CoreV1().Namespaces().Get(context.TODO(), pod.Namespace, metav1.GetOptions{})
-
 	kc, err := k8schain.NewInCluster(context.Background(), opt)
 	if err != nil {
 		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
@@ -193,9 +176,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions()}
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
-
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,
