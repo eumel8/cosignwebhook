@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: mtr.devops.telekom.de/eumel8/cosignwebhook:instance_migration
+          image: mtr.devops.telekom.de/eumel8/grumpy:cosign
           imagePullPolicy: Always
           args:
             - -alsologtostderr
@@ -80,7 +80,7 @@ webhooks:
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
-          values: ["cosignwebhook"]
+          values: ["cosignwebhook", "kube-system", "cattle-system", "default"]
     clientConfig:
       service:
         name: cosignwebhook

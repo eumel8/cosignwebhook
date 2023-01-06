@@ -25,11 +25,17 @@ spec:
         imagePullPolicy: Always
         name: demoapp
         env:
-        - name: COSIGNPUBKEY
+        - name: COSIGNPUBKEY1
           value: |
               -----BEGIN PUBLIC KEY-----
               MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGOrnlJ1lFxAFTY2LF1vCuVHNZr9H
               QryRDinn+JhPrDYR2wqCP+BUkeWja+RWrRdmskA0AffxBzaQrN/SwZI6fA==
+              -----END PUBLIC KEY-----
+        - name: COSIGNPUBKEY
+          value: |
+              -----BEGIN PUBLIC KEY-----
+              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4BMx5RUJGiKKp/fZrYAFFJv8KvSl
+              WS/j6/vHxhbWj0Gy0fOkmOaWVxyOwEqmkNqVSDWiKjozNsTHqHeMIDO2yA==
               -----END PUBLIC KEY-----
         ports:
         - containerPort: 8080
@@ -50,6 +56,8 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
       dnsPolicy: ClusterFirst
+      imagePullSecrets:
+      - name: demoapp-pull-secret
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}
