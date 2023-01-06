@@ -10,6 +10,7 @@ As Cluster Admin create a namespace and install the Admission Controller:
 
 ```bash
 kubectl create namespace cosignwebhook
+kubectl -n cosignwebhook apply -f manifests/rbac.yaml
 kubectl -n cosignwebhook apply -f manifests/manifest.yaml
 ```
 
@@ -44,7 +45,7 @@ kubectl -n cosignwebhook apply -f manifests/demoapp.yaml
 
 # TODO
 
-* Support private images
+* Support private images [x]
 * Support multiple container/keys
 
 ## local build
