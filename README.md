@@ -2,6 +2,8 @@
 
 Kubernetes Validation Admission Controller to verify Cosign Image signatures.
 
+<img src="cosignwebhook.png" alt="cosignwebhook" width="680"/>
+
 Watch POD creating in deployments, looking for the first container image and a present RSA publik key to verify.
 
 # Installation
