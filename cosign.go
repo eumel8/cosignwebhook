@@ -14,20 +14,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	//	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/google/go-containerregistry/pkg/name"
-	//"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	ociremote "github.com/sigstore/cosign/pkg/oci/remote"
 	"github.com/sigstore/cosign/v2/pkg/cosign"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
-	//"k8s.io/client-go/tools/clientcmd"
-	//"k8s.io/client-go/kubernetes"
-	//"k8s.io/client-go/rest"
 )
 
 const (
@@ -35,9 +29,6 @@ const (
 	admissionKind = "AdmissionReview"
 	cosignEnvVar  = "COSIGNPUBKEY"
 )
-
-//var requestUid = v1.AdmissionReview{Request: &v1.AdmissionRequest{UID: ""}}
-//var requestUid = v1.AdmissionReview.Request.UID
 
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
@@ -57,7 +48,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
-	// glog.Info("Received request: ", string(body))
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
@@ -104,6 +94,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Lookup image name of first container
 	image := pod.Spec.Containers[0].Image
 	refImage, err := name.ParseReference(image)
 
@@ -121,6 +112,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Lookup imagePullSecrets for reviewed POD
 	imagePullSecrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
 	for _, s := range pod.Spec.ImagePullSecrets {
 		imagePullSecrets = append(imagePullSecrets, s.Name)
@@ -204,18 +196,20 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
+		glog.Info("Image successful verified: %s/%s", pod.Namespace, pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write OK response: %v", err)
+			glog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	}
 }
 
+// Template for AdmissionReview
 func admissionResponse(admissionCode int32, admissionPermissions bool, admissionStatus string, admissionMessage string, ar *v1.AdmissionReview) v1.AdmissionReview {
 	return v1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
