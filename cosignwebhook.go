@@ -196,7 +196,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
-		glog.Info("Image successful verified: %s/%s", pod.Namespace, pod.Name)
+		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
