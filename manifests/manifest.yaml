@@ -61,6 +61,10 @@ spec:
             privileged: false
             runAsUser: 1000
             runAsGroup: 1000
+      securityContext:
+        fsGroup: 1000
+        supplementalGroups:
+        - 1000
       serviceAccount: cosignwebhook
       volumes:
         - name: webhook-certs
