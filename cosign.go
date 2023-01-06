@@ -57,7 +57,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
-	glog.Info("Received request: ", string(body))
+	// glog.Info("Received request: ", string(body))
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
@@ -74,7 +74,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	raw := arRequest.Request.Object.Raw
-	// requestUid := arRequest.Request.UID
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
 		glog.Error("error deserializing pod")
@@ -121,19 +120,19 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	/*
-		imagePullSecrets := make([]string, 0, len(pod.Spec.Template.Spec.ImagePullSecrets))
-		for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
-			imagePullSecrets = append(imagePullSecrets, s.Name)
-		}
-		ns := getNamespace(ctx, pod.Namespace)
-		opt := k8schain.Options{
-			Namespace:          ns,
-			ServiceAccountName: pod.Spec.Template.Spec.ServiceAccountName,
-			ImagePullSecrets:   imagePullSecrets,
-		}
 
-	*/
+	imagePullSecrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
+	for _, s := range pod.Spec.ImagePullSecrets {
+		imagePullSecrets = append(imagePullSecrets, s.Name)
+	}
+	opt := k8schain.Options{
+		Namespace:          pod.Namespace,
+		ServiceAccountName: pod.Spec.ServiceAccountName,
+		ImagePullSecrets:   imagePullSecrets,
+	}
+	glog.Info("Received request: ", imagePullSecrets)
+	glog.Info("Received opt: ", opt)
+
 	/*
 			imagePullSecrets := make([]string, 0, len(wp.Spec.Template.Spec.ImagePullSecrets))
 		for _, s := range pod.Spec.Template.Spec.ImagePullSecrets {
