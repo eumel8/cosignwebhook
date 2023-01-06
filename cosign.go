@@ -25,8 +25,9 @@ import (
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
-
-	"k8s.io/client-go/tools/clientcmd"
+	//"k8s.io/client-go/tools/clientcmd"
+	//"k8s.io/client-go/kubernetes"
+	//"k8s.io/client-go/rest"
 )
 
 const (
@@ -56,7 +57,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
-	glog.Info("Received request")
+	glog.Info("Received request: ", string(body))
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
@@ -172,18 +173,13 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// kc, err := k8schain.NewInCluster(context.WithValue(), k8schain.Options{})
 	//var k8sconfig *rest.Config
-	//k8sconfig, _ = rest.InClusterConfig()
-	// clientset, _ := kubernetes.NewForConfig(k8sconfig)
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules,
-		&clientcmd.ConfigOverrides{
-			CurrentContext: "",
-		}).RawConfig()
-	currentContext := config.CurrentContext
+	// k8sconfig, _ = rest.InClusterConfig()
+	//clientset, _ := kubernetes.NewForConfig(k8sconfig)
 
-	kc, err := k8schain.NewInCluster(currentContext, k8schain.Options{})
+	//currentContext,_ := clientset.CoreV1().Namespaces().Get(context.TODO(), pod.Namespace, metav1.GetOptions{})
+
+	kc, err := k8schain.NewInCluster(context.Background(), k8schain.Options{})
 	if err != nil {
 		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
