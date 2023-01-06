@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: mtr.devops.telekom.de/eumel8/grumpy:cosign
+          image: mtr.devops.telekom.de/caas/cosignwebhook:cosign
           imagePullPolicy: Always
           args:
             - -alsologtostderr
@@ -41,10 +41,10 @@ spec:
             - 2>&1
           resources:
             limits:
-              memory: 50Mi
-              cpu: 300m
+              memory: 250Mi
+              cpu: 500m
             requests:
-              memory: 00Mi
+              memory: 64Mi
               cpu: 300m
           volumeMounts:
             - name: webhook-certs
