@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: mtr.devops.telekom.de/caas/cosignwebhook:cosign
+          image: mtr.devops.telekom.de/caas/cosignwebhook:main
           imagePullPolicy: Always
           args:
             - -alsologtostderr
@@ -61,6 +61,7 @@ spec:
             privileged: false
             runAsUser: 1000
             runAsGroup: 1000
+      serviceAccount: cosignwebhook
       volumes:
         - name: webhook-certs
           secret:
