@@ -20,7 +20,7 @@ metadata:
   labels:
     app: cosignwebhook
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: cosignwebhook
@@ -30,15 +30,72 @@ spec:
       labels:
         app: cosignwebhook
     spec:
+      initContainers:
+      - args:
+        - verify
+        - --key
+        - env://COSIGNPUBKEY
+        - --insecure-skip-tlog-verify
+        - mtr.devops.telekom.de/mcsps/cosign:v1.8.0
+        command:
+        - cosign
+        env:
+        - name: COSIGNPUBKEY
+          value: |
+              -----BEGIN PUBLIC KEY-----
+              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhyQCx0E9wQWSFI9ULGwy3BuRklnt
+              IqozONbbdbqz11hlRJy9c7SG+hdcFl9jE9uE/dwtuwU2MqU9T/cN0YkWww==
+              -----END PUBLIC KEY-----
+        image: mtr.devops.telekom.de/mcsps/cosign:v2.0.0-rc.0
+        imagePullPolicy: Always
+        name: sigcheckcosign
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+      - args:
+        - verify
+        - --key
+        - env://COSIGNPUBKEY
+        - mtr.devops.telekom.de/caas/cosignwebhook:1.0.0
+        command:
+        - cosign
+        env:
+        - name: COSIGNPUBKEY
+          value: |
+              -----BEGIN PUBLIC KEY-----
+              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgei36FSIhT8a9lOHs1Sem5KvmrT+
+              Xi2EcyjLvaJzqu5n0TiygGeO4ZcU30A1PQv6xoI0xBxpyZAw7XeqzrRDOQ==
+              -----END PUBLIC KEY-----
+        image: mtr.devops.telekom.de/mcsps/cosign:v1.8.0
+        imagePullPolicy: Always
+        name: sigcheckwebhook
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
       containers:
-        - name: webhook
-          image: mtr.devops.telekom.de/caas/cosignwebhook:main
+        - name: cosignwebhook
+          image: mtr.devops.telekom.de/caas/cosignwebhook:1.0.0
           imagePullPolicy: Always
           args:
             - -alsologtostderr
-            - --log_dir=/
-            - -v=10
             - 2>&1
+            # - --log_dir=/
+            # - -v=10
+          env:
+          - name: COSIGNPUBKEY
+            value: |
+                -----BEGIN PUBLIC KEY-----
+                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgei36FSIhT8a9lOHs1Sem5KvmrT+
+                Xi2EcyjLvaJzqu5n0TiygGeO4ZcU30A1PQv6xoI0xBxpyZAw7XeqzrRDOQ==
+                -----END PUBLIC KEY-----
           resources:
             limits:
               memory: 250Mi
