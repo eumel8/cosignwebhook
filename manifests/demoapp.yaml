@@ -1,3 +1,12 @@
+---
+apiVersion: v1
+data:
+  .dockerconfigjson: ewogICJhdXRocyI6IHsKICAgICJtdHIuZGV2b3BzLnRlbGVrb20uZGUiOiB7CiAgICAgICJhdXRoIjogIlkyOXphV2R1WkdWdGJ5dHdkV3hzT2psRFFrVmFWMGxYTUUxT05GVkhRa3hRV0ZKTFVGVkVORXRVUWtjNFZ6QkpUbG8xVFRCQldUWlhRMDlEU1RCR01qTlNOekpWVURoWVZWaFRURVZEUzBJPSIsCiAgICAgICJlbWFpbCI6ICIiCiAgICB9CiAgfQp9
+kind: Secret
+metadata:
+  name: demoapp-pull-secret
+type: kubernetes.io/dockerconfigjson
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,21 +30,21 @@ spec:
         app: demoapp
     spec:
       containers:
-      - image: mtr.devops.telekom.de/eumel8/test1:signed2
+      - image: mtr.devops.telekom.de/cosigndemo/nginx-non-root:latest
         imagePullPolicy: Always
         name: demoapp
         env:
+        - name: COSIGNPUBKEY
+          value: |
+              -----BEGIN PUBLIC KEY-----
+              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKPaYHgdEDCymplyziHvByR3qFHYv
+              iile0+E0KsW1jZHIkZxQcwhk2J3jJnUu7fr7+wNCxCdTGXBhAI2oxMKmlw==
+              -----END PUBLIC KEY-----
         - name: COSIGNPUBKEY1
           value: |
               -----BEGIN PUBLIC KEY-----
               MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGOrnlJ1lFxAFTY2LF1vCuVHNZr9H
               QryRDinn+JhPrDYR2wqCP+BUkeWja+RWrRdmskA0AffxBzaQrN/SwZI6fA==
-              -----END PUBLIC KEY-----
-        - name: COSIGNPUBKEY
-          value: |
-              -----BEGIN PUBLIC KEY-----
-              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4BMx5RUJGiKKp/fZrYAFFJv8KvSl
-              WS/j6/vHxhbWj0Gy0fOkmOaWVxyOwEqmkNqVSDWiKjozNsTHqHeMIDO2yA==
               -----END PUBLIC KEY-----
         ports:
         - containerPort: 8080
@@ -55,6 +64,9 @@ spec:
         stdin: true
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
+        volumeMounts:
+          - name: tmp
+            mountPath: /tmp
       dnsPolicy: ClusterFirst
       imagePullSecrets:
       - name: demoapp-pull-secret
@@ -62,3 +74,6 @@ spec:
       schedulerName: default-scheduler
       securityContext: {}
       terminationGracePeriodSeconds: 30
+      volumes:
+        - name: tmp
+          emptyDir: {}
