@@ -18,15 +18,20 @@ jobs:
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           export DOCKER_BUILDKIT=1
           docker build -f Dockerfile -t ${MTR}/${REPO}/${IMAGE}:${VERSION} .
+          docker build -f Dockerfile.postjob -t ${MTR}/${REPO}/${POSTIMAGE}:${VERSION} .
           docker tag ${MTR}/${REPO}/${IMAGE}:${VERSION} ghcr.io/${{ github.repository_owner }}/${IMAGE}/${IMAGE}:${VERSION}
+          docker tag ${MTR}/${REPO}/${POSTIMAGE}:${VERSION} ghcr.io/${{ github.repository_owner }}/${IMAGE}/${POSTIMAGE}:${VERSION}
           docker push ${MTR}/${REPO}/${IMAGE}:${VERSION}
           docker push ghcr.io/${{ github.repository_owner }}/${IMAGE}/${IMAGE}:${VERSION}
+          docker push ghcr.io/${{ github.repository_owner }}/${IMAGE}/${POSTIMAGE}:${VERSION}
           cosign sign --key env://COSIGN_KEY ${MTR}/${REPO}/${IMAGE}:${VERSION}
           cosign sign --key env://COSIGN_KEY ghcr.io/${{ github.repository_owner }}/${IMAGE}/${IMAGE}:${VERSION}
+          cosign sign --key env://COSIGN_KEY ghcr.io/${{ github.repository_owner }}/${IMAGE}/${POSTIMAGE}:${VERSION}
         env:
           DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
           DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
           MTR: mtr.devops.telekom.de
           REPO: caas
           IMAGE: cosignwebhook
+          POSTIMAGE: cosignpostjob
           COSIGN_KEY: ${{secrets.COSIGN_KEY}}
