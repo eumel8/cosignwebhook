@@ -1,0 +1,8 @@
+FROM alpine:latest
+# Add System Tools
+RUN apk add --update --no-cache curl jq git openssl bash busybox-extras && apk upgrade
+# Add kubectl
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && mv kubectl /usr/local/bin/
+
+COPY generate-certs.sh /generate-certs.sh
+RUN chmod 0755 /generate-certs.sh
