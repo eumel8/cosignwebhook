@@ -1,7 +1,9 @@
 name: Docker Image CI
 
 on:
-  tags:
+  push:
+    tags:
+    - "*"
     
 jobs:
   build:
