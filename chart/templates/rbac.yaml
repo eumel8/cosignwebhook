@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}-postjob
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - secrets
+    - serviceaccounts
+    verbs:
+    - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}-postjob
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - secrets
+    verbs:
+    - get
+    - create
+    - update
+  - apiGroups:
+    - admissionregistration.k8s.io
+    resources:
+    - validatingwebhookconfigurations
+    verbs:
+    - get
+    - create
+    - update
+    - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "cosignwebhook.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "cosignwebhook.fullname" . }}
+  namespace: {{ .Release.Namespace | default "default" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}-postjob
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "cosignwebhook.fullname" . }}-postjob
+subjects:
+- kind: ServiceAccount
+  name: {{ include "cosignwebhook.fullname" . }}-postjob
+  namespace: {{ .Release.Namespace | default "default" }}

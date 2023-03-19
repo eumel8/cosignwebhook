@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cosignwebhook.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cosignwebhook.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cosignwebhook.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+      - args:
+        - verify
+        - --key
+        - env://COSIGNPUBKEY
+        - --insecure-skip-tlog-verify
+        - {{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}
+        command:
+        - cosign
+        env:
+        - name: COSIGNPUBKEY
+          value: {{- toYaml .Values.cosign.key | indent 12 }}
+        image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
+        imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
+        name: sigcheckcosign
+        resources:
+          {{- toYaml .Values.initresources | nindent 10 }}
+      - args:
+        - verify
+        - --key
+        - env://COSIGNPUBKEY
+        - {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+        command:
+        - cosign
+        env:
+        - name: COSIGNPUBKEY
+          value: {{- toYaml .Values.cosign.key | indent 12 }}
+        image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
+        imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
+        name: sigcheckwebhook
+        resources:
+          {{- toYaml .Values.initresources | nindent 10 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          args:
+            - -alsologtostderr
+            - 2>&1
+            # - --log_dir=/
+            # - -v=10
+          env:
+          - name: COSIGNPUBKEY
+            value: {{- toYaml .Values.cosign.key | indent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/certs
+              readOnly: true
+            - name: logs
+              mountPath: /tmp
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: {{ .Chart.Name }}
+        - name: logs
+          emptyDir: {}
