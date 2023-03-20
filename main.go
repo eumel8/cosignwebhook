@@ -57,12 +57,14 @@ func main() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
 			glog.Errorf("Failed to listen and serve webhook server: %v", err)
 		}
+	}()
+	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
 			glog.Errorf("Failed to listen and serve minitor server: %v", err)
 		}
 	}()
 
-	glog.Infof("Server running listening in port: %s", port)
+	glog.Infof("Server running listening in port: %s,%s", port, mport)
 
 	// listening shutdown singal
 	signalChan := make(chan os.Signal, 1)
@@ -71,4 +73,5 @@ func main() {
 
 	glog.Info("Got shutdown signal, shutting down webhook server gracefully...")
 	server.Shutdown(context.Background())
+	mserver.Shutdown(context.Background())
 }
