@@ -44,6 +44,7 @@ func main() {
 	cs := CosignServerHandler{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate", cs.serve)
+	mux.HandleFunc("/healthz", cs.healthz)
 	server.Handler = mux
 
 	// start webhook server in new rountine

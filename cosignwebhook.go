@@ -36,6 +36,16 @@ const (
 type CosignServerHandler struct {
 }
 
+func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if atomic.LoadInt32(&healthy) == 1 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+}
+
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
