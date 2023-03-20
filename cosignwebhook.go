@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync/atomic"
 
 	"github.com/golang/glog"
 	v1 "k8s.io/api/admission/v1"
