@@ -42,11 +42,8 @@ type CosignServerHandler struct {
 }
 
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
-	if atomic.LoadInt32(&healthy) == 1 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	w.WriteHeader(http.StatusServiceUnavailable)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 	return
 }
 
