@@ -47,4 +47,4 @@ jobs:
           HELM_EXPERIMENTAL_OCI=1 helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
           helm lint chart
           helm package chart
-          HELM_EXPERIMENTAL_OCI=1 helm push $(ls *.tgz| head -1) oci://ghcr.io/${{ github.actor }}/cosignwebhook
+          HELM_EXPERIMENTAL_OCI=1 helm push $(ls *.tgz| head -1) oci://ghcr.io/${{ github.actor }}/charts
