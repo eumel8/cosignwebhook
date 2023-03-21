@@ -49,16 +49,23 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			body = data
 		}
 	}
-	if len(body) == 0 {
-		glog.Error("empty body")
-		http.Error(w, "empty body", http.StatusBadRequest)
-		return
-	}
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
 		glog.Error("no validate")
 		http.Error(w, "no validate", http.StatusBadRequest)
+		return
+	}
+
+	// Url path of metrics
+	if r.URL.Path != "/metrics" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if len(body) == 0 {
+		glog.Error("empty body")
+		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
 
