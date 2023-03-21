@@ -11,6 +11,10 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
+
+	"github.com/prometheus/client_golang/prometheus"
+	//"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 const (
@@ -20,6 +24,14 @@ const (
 
 var (
 	tlscert, tlskey string
+	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+                Name: "cosign_processed_ops_total",
+                Help: "The total number of processed events",
+        })
+	verifiedProcessed = promauto.NewCounter(prometheus.CounterOpts{
+                Name: "cosign_processed_verified_total",
+                Help: "The number of verfified events",
+        })
 )
 
 func main() {
@@ -50,6 +62,8 @@ func main() {
 
 	mmux := http.NewServeMux()
 	mmux.HandleFunc("/healthz", cs.healthz)
+	mmux.HandleFunc("/metrics", cs.serve)
+	//mmux.HandleFunc("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 
 	// start webhook server in new rountine
