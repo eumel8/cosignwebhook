@@ -13,7 +13,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/prometheus/client_golang/prometheus"
-	//"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
@@ -62,8 +62,8 @@ func main() {
 
 	mmux := http.NewServeMux()
 	mmux.HandleFunc("/healthz", cs.healthz)
-	mmux.HandleFunc("/metrics", cs.serve)
-	//mmux.HandleFunc("/metrics", promhttp.Handler())
+	//mmux.HandleFunc("/metrics", cs.metrics)
+	mmux.Handle("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 
 	// start webhook server in new rountine

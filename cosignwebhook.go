@@ -22,6 +22,8 @@ import (
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -36,6 +38,13 @@ const (
 type CosignServerHandler struct {
 }
 
+/*
+func (cs *CosignServerHandler) metrics(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	return
+}
+*/
+
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
@@ -43,6 +52,10 @@ func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
+
+	prometheus.MustRegister(opsProcessed)
+	prometheus.MustRegister(verifiedProcessed)
+
 	var body []byte
 	if r.Body != nil {
 		if data, err := io.ReadAll(r.Body); err == nil {
