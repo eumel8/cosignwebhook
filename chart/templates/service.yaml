@@ -8,7 +8,10 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - name: webhook
-      port: {{ .Values.service.port }}
+      port: {{ .Values.service.webhookPort }}
       targetPort: {{ .Values.service.targetPort }}
+    - name: metrics
+      port: {{ .Values.service.monitorPort }}
+      targetPort: {{ .Values.service.metricPort }}
   selector:
     {{- include "cosignwebhook.selectorLabels" . | nindent 4 }}

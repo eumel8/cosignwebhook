@@ -23,7 +23,6 @@ import (
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 
-	// "github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -38,13 +37,6 @@ const (
 type CosignServerHandler struct {
 }
 
-/*
-func (cs *CosignServerHandler) metrics(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	return
-}
-*/
-
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
@@ -52,10 +44,6 @@ func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
-
-	//prometheus.MustRegister(opsProcessed)
-	//prometheus.MustRegister(verifiedProcessed)
-
 	var body []byte
 	if r.Body != nil {
 		if data, err := io.ReadAll(r.Body); err == nil {
@@ -82,6 +70,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// count each request for prometheus metric
 	opsProcessed.Inc()
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(body, &arRequest); err != nil {
@@ -223,6 +212,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
+		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))

@@ -62,7 +62,6 @@ func main() {
 
 	mmux := http.NewServeMux()
 	mmux.HandleFunc("/healthz", cs.healthz)
-	//mmux.HandleFunc("/metrics", cs.metrics)
 	mmux.Handle("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 

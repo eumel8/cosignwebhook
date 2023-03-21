@@ -6,7 +6,13 @@ Kubernetes Validation Admission Controller to verify Cosign Image signatures.
 
 Watch POD creating in deployments, looking for the first container image and a present RSA publik key to verify.
 
-# Installation
+# Installation with Helm
+
+```bash
+helm -n cosignwebhook upgrade -i cosignwebhook chart
+```
+
+# Installation with manifest
 
 As Cluster Admin create a namespace and install the Admission Controller:
 

@@ -4,3 +4,7 @@ description: A Helm chart for Cosign Webhook Admission Controller
 type: application
 version: 0.1.0
 appVersion: "2.0.0"
+maintainers:
+  - name: eumel8
+    email: f.kloeker@telekom.de
+    url: https://www.telekom.com
