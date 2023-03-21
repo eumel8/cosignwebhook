@@ -50,16 +50,16 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Url path of metrics
+	if r.URL.Path == "/metrics" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Url path of admission
 	if r.URL.Path != "/validate" {
 		glog.Error("no validate")
 		http.Error(w, "no validate", http.StatusBadRequest)
-		return
-	}
-
-	// Url path of metrics
-	if r.URL.Path != "/metrics" {
-		w.WriteHeader(http.StatusOK)
 		return
 	}
 
