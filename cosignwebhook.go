@@ -23,7 +23,7 @@ import (
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
 
-	"github.com/prometheus/client_golang/prometheus"
+	// "github.com/prometheus/client_golang/prometheus"
 )
 
 const (
