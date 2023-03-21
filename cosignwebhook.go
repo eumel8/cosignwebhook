@@ -53,8 +53,8 @@ func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
-	prometheus.MustRegister(opsProcessed)
-	prometheus.MustRegister(verifiedProcessed)
+	//prometheus.MustRegister(opsProcessed)
+	//prometheus.MustRegister(verifiedProcessed)
 
 	var body []byte
 	if r.Body != nil {
