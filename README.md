@@ -9,8 +9,14 @@ Watch POD creating in deployments, looking for the first container image and a p
 # Installation with Helm
 
 ```bash
-helm -n cosignwebhook upgrade -i cosignwebhook chart
+helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --versi
+on 2.0.0 --create-namespace
 ```
+
+this installation has some advantages:
+
+* auto generate TLS key pair
+* setup ServiceMonitor and GrafanaDashboard
 
 # Installation with manifest
 
