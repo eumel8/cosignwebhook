@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/eumel8/cosignwebhook/cosignwebhook
   pullPolicy: IfNotPresent
-  tag: "1.0.0"
+  tag: 2.0.0
 
 imagePullSecrets: []
 nameOverride: ""
@@ -44,7 +44,10 @@ securityContext:
 service:
   type: ClusterIP
   port: 443
+  # targetPort and metricPort are static in the cosignwebhook app
+  # configurable options for later
   targetPort: 8080
+  metricPort: 8081
 
 initresources:
   limits:
@@ -77,17 +80,24 @@ affinity: {}
 
 cosign:
   image:
-    repository: mtr.devops.telekom.de/mcsps/cosign
-    tag: v1.8.0
+    repository: ghcr.io/sigstore/cosign/cosign
+    tag: v2.0.0
     pullPolicy: IfNotPresent
-  key: |
-      -----BEGIN PUBLIC KEY-----
-      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgei36FSIhT8a9lOHs1Sem5KvmrT+
-      Xi2EcyjLvaJzqu5n0TiygGeO4ZcU30A1PQv6xoI0xBxpyZAw7XeqzrRDOQ==
-      -----END PUBLIC KEY-----
+  sccosign:
+    key: |
+        -----BEGIN PUBLIC KEY-----
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhyQCx0E9wQWSFI9ULGwy3BuRklnt
+        IqozONbbdbqz11hlRJy9c7SG+hdcFl9jE9uE/dwtuwU2MqU9T/cN0YkWww==
+        -----END PUBLIC KEY-----
+  scwebhook:
+    key: |
+        -----BEGIN PUBLIC KEY-----
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENDN3HpXY2weMYRuuJbZnNczrOyns
+        ZvVnR15G9EILCH8+elXkYy+4U70mR++XIL0iD8NhZ3kxfpFjxyHlnG5Snw==
+        -----END PUBLIC KEY-----
 
 postjob:
   image:
     repository: ghcr.io/eumel8/cosignwebhook/cosignpostjob
-    tag: 1.0.1
+    tag: 2.0.0
     pullPolicy: IfNotPresent
