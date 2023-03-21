@@ -40,3 +40,11 @@ jobs:
           POSTIMAGE: cosignpostjob
           COSIGN_KEY: ${{secrets.COSIGN_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
+      - name: Helm lint & package & push
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+          HELM_EXPERIMENTAL_OCI=1 helm registry login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          helm lint chart
+          helm package chart
+          HELM_EXPERIMENTAL_OCI=1 helm push $(ls *.tgz| head -1) oci://ghcr.io/${{ github.actor }}/cosignwebhook
