@@ -22,6 +22,7 @@ import (
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
+
 )
 
 const (
@@ -53,9 +54,10 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			body = data
 		}
 	}
-	if len(body) == 0 {
-		glog.Error("empty body")
-		http.Error(w, "empty body", http.StatusBadRequest)
+
+	// Url path of metrics
+	if r.URL.Path == "/metrics" {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -66,6 +68,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(body) == 0 {
+		glog.Error("empty body")
+		http.Error(w, "empty body", http.StatusBadRequest)
+		return
+	}
+
+	// count each request for prometheus metric
+	opsProcessed.Inc()
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(body, &arRequest); err != nil {
 		glog.Error("incorrect body")
@@ -206,6 +216,8 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
+		// count successful verifies for prometheus metric
+		verifiedProcessed.Inc()
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
