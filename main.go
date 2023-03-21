@@ -15,6 +15,7 @@ import (
 
 const (
 	port = "8080"
+	mport = "8081"
 )
 
 var (
@@ -22,9 +23,6 @@ var (
 )
 
 func main() {
-
-	//flag.StringVar(&tlscert, "tlsCertFile", "/etc/certs/cert.pem", "File containing the x509 Certificate for HTTPS.")
-	//flag.StringVar(&tlskey, "tlsKeyFile", "/etc/certs/key.pem", "File containing the x509 private key to --tlsCertFile.")
 	flag.StringVar(&tlscert, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	flag.StringVar(&tlskey, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to --tlsCertFile.")
 
@@ -40,11 +38,19 @@ func main() {
 		TLSConfig: &tls.Config{Certificates: []tls.Certificate{certs}},
 	}
 
+	mserver := &http.Server{
+		Addr:      fmt.Sprintf(":%v", mport),
+	}
+
 	// define http server and server handler
 	cs := CosignServerHandler{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate", cs.serve)
 	server.Handler = mux
+
+	mmux := http.NewServeMux()
+	mmux.HandleFunc("/healthz", cs.healthz)
+	mserver.Handler = mmux
 
 	// start webhook server in new rountine
 	go func() {
@@ -52,8 +58,13 @@ func main() {
 			glog.Errorf("Failed to listen and serve webhook server: %v", err)
 		}
 	}()
+	go func() {
+		if err := mserver.ListenAndServe(); err != nil {
+			glog.Errorf("Failed to listen and serve minitor server: %v", err)
+		}
+	}()
 
-	glog.Infof("Server running listening in port: %s", port)
+	glog.Infof("Server running listening in port: %s,%s", port, mport)
 
 	// listening shutdown singal
 	signalChan := make(chan os.Signal, 1)
@@ -62,4 +73,5 @@ func main() {
 
 	glog.Info("Got shutdown signal, shutting down webhook server gracefully...")
 	server.Shutdown(context.Background())
+	mserver.Shutdown(context.Background())
 }

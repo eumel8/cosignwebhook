@@ -30,10 +30,20 @@ const (
 	cosignEnvVar  = "COSIGNPUBKEY"
 )
 
+var (
+	healthy int32
+)
+
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 type CosignServerHandler struct {
+}
+
+func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
+	return
 }
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {

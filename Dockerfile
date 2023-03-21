@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.19 AS build-env
+FROM golang:1.20 AS build-env
 RUN mkdir -p /go/src/github.com/eumel8/cosignwebhook
 WORKDIR /go/src/github.com/eumel8/cosignwebhook
 COPY  . .
