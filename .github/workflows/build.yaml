@@ -29,8 +29,8 @@ jobs:
           docker push ${MTR}/${REPO}/${POSTIMAGE}:${VERSION}
           docker push ghcr.io/${{ github.repository_owner }}/${IMAGE}/${IMAGE}:${VERSION}
           docker push ghcr.io/${{ github.repository_owner }}/${IMAGE}/${POSTIMAGE}:${VERSION}
-          cosign sign --key env://COSIGN_KEY ${MTR}/${REPO}/${IMAGE}:${VERSION}
-          cosign sign --key env://COSIGN_KEY ${MTR}/${REPO}/${POSTIMAGE}:${VERSION}
+          cosign sign --key env://COSIGN_KEY --tlog-upload=false ${MTR}/${REPO}/${IMAGE}:${VERSION}
+          cosign sign --key env://COSIGN_KEY --tlog-upload=false ${MTR}/${REPO}/${POSTIMAGE}:${VERSION}
           cosign sign --key env://COSIGN_KEY --tlog-upload=false ghcr.io/${{ github.repository_owner }}/${IMAGE}/${IMAGE}:${VERSION}
           cosign sign --key env://COSIGN_KEY --tlog-upload=false ghcr.io/${{ github.repository_owner }}/${IMAGE}/${POSTIMAGE}:${VERSION}
         env:
