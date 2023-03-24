@@ -24,41 +24,6 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "cosignwebhook.fullname" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      initContainers:
-      - args:
-        - verify
-        - --key
-        - env://COSIGNPUBKEY
-        - {{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}
-        command:
-        - cosign
-        env:
-        - name: COSIGNPUBKEY
-          value: {{- toYaml .Values.cosign.sccosign.key | indent 12 }}
-        image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
-        imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
-        name: sccosign
-        resources:
-          {{- toYaml .Values.initresources | nindent 10 }}
-      - args:
-        - verify
-        - --insecure-ignore-tlog
-        - --key
-        - env://COSIGNPUBKEY
-        - {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
-        command:
-        - cosign
-        env:
-        - name: COSIGNPUBKEY
-          value: {{- toYaml .Values.cosign.scwebhook.key | indent 12 }}
-        image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
-        imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
-        name: scwebhook
-        resources:
-          {{- toYaml .Values.initresources | nindent 10 }}
       containers:
         - name: {{ .Chart.Name }}
           args:
@@ -96,6 +61,49 @@ spec:
               readOnly: true
             - name: logs
               mountPath: /tmp
+      initContainers:
+      - args:
+        - verify
+        - --insecure-ignore-tlog
+        - --insecure-ignore-sct
+        - --key
+        - env://COSIGNPUBKEY
+        - {{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}
+        command:
+        - cosign
+        env:
+        - name: COSIGNPUBKEY
+          value: {{- toYaml .Values.cosign.sccosign.key | indent 12 }}
+        - name: SIGSTORE_NO_CACHE
+          value: "true"
+        image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
+        imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
+        name: sccosign
+        resources:
+          {{- toYaml .Values.initresources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+      - args:
+        - verify
+        - --insecure-ignore-tlog
+        - --insecure-ignore-sct
+        - --key
+        - env://COSIGNPUBKEY
+        - {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+        command:
+        - cosign
+        env:
+        - name: COSIGNPUBKEY
+          value: {{- toYaml .Values.cosign.scwebhook.key | indent 12 }}
+        - name: SIGSTORE_NO_CACHE
+          value: "true"
+        image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
+        imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
+        name: scwebhook
+        resources:
+          {{- toYaml .Values.initresources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -104,6 +112,9 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "cosignwebhook.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
