@@ -57,10 +57,15 @@ spec:
             cpu: 10m
             memory: 64Mi
         securityContext:
+        securityContext:
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
-          capabilities: {}
+          capabilities:
+            drop:
+            - ALL
           privileged: false
-          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
         stdin: true
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
@@ -72,7 +77,10 @@ spec:
       - name: demoapp-pull-secret
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
+      securityContext:
+        fsGroup: 1000
+        supplementalGroups:
+        - 1000
       terminationGracePeriodSeconds: 30
       volumes:
         - name: tmp
