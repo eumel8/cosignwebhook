@@ -13,8 +13,11 @@ spec:
       {{- include "cosignwebhook.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        # deployment needs to restart after each `helm upgrade` due the new cert generation
+        checksum/secret: {{ include (print $.Template.BasePath "/admission.yaml") . | sha256sum }}
+        #upgrade: {{ randAlphaNum 5 | quote }}
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
