@@ -56,6 +56,9 @@ service:
 serviceMonitor:
   enabled: false
 
+networkPolicy:
+  enabled: false
+
 # install a Grafana Dashboard (optional on a specific namespace)
 grafanaDashboard:
   enabled: false
@@ -112,10 +115,3 @@ cosign:
         MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENDN3HpXY2weMYRuuJbZnNczrOyns
         ZvVnR15G9EILCH8+elXkYy+4U70mR++XIL0iD8NhZ3kxfpFjxyHlnG5Snw==
         -----END PUBLIC KEY-----
-
-# postjob generates a new TLS keypair after application installation
-postjob:
-  image:
-    repository: ghcr.io/eumel8/cosignwebhook/cosignpostjob
-    tag: 2.0.4
-    pullPolicy: IfNotPresent
