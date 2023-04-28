@@ -7,6 +7,31 @@ metadata:
   name: demoapp-pull-secret
 type: kubernetes.io/dockerconfigjson
 ---
+apiVersion: v1
+data:
+  run.sh: |
+    #!/bin/sh
+    if [ -z "$REGISTRY" ] || [ -z "$REPO" ] || [ -z "$TAG" ]|| [ -z "$SCORE" ]; then
+    	echo "required variables not set"
+    	exit 1
+    fi
+    MANIFEST=$(curl -s -H 'Authorization: Bearer ${BEARER}' ${REGISTRY}/api/v1/repository/${REPO}|jq .tags.\"${TAG}\".manifest_digest | sed 's/\"//g')
+    VULN=$(curl -s -H 'Authorization: Bearer ${BEARER}' ${REGISTRY}/api/v1/repository/${REPO}/manifest/${MANIFEST}/security | jq '.data.Layer.Features[].Vulnerabilities[]?| select (.Metadata.NVD.CVSSv3.Score != "")| select(.Metadata.NVD.CVSSv3.Score > '${SCORE}')|length')
+    
+    if [ -z "$VULN" ] ; then
+    	echo "ok"
+    	exit 0
+    else
+    	echo "found vulnerabilities"
+            curl -s -H 'Authorization: Bearer ${BEARER}' ${REGISTRY}/api/v1/repository/${REPO}/manifest/${MANIFEST}/security | jq '.data.Layer.Features[].Vulnerabilities[]?| select (.Metadata.NVD.CVSSv3.Score != "")| select(.Metadata.NVD.CVSSv3.Score > '${SCORE}')'
+    	exit 1
+    fi
+kind: ConfigMap
+metadata:
+  labels:
+    app: demoapp
+  name: demoapp-sidecar
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -57,7 +82,6 @@ spec:
             cpu: 10m
             memory: 64Mi
         securityContext:
-        securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
@@ -72,6 +96,38 @@ spec:
         volumeMounts:
           - name: tmp
             mountPath: /tmp
+      initContainers:
+      - name: checkvulnerabilities
+        image: mtr.devops.telekom.de/mcsps/busybox:latest
+        env:
+        - name: REGISTRY
+          value: https://mtr.devops.telekom.de
+        - name: REPO
+          value: cosigndemo/nginx-non-root
+        - name: TAG
+          value: latest
+        - name: SCORE
+          value: 9.0
+        command: ['bash', '-x', "/sidecar/run.sh"]
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          runAsUser: 1000
+          runAsGroup: 1000
+        volumeMounts:
+        - name: demoapp-sidecar
+          mountPath: /sidecar
       dnsPolicy: ClusterFirst
       imagePullSecrets:
       - name: demoapp-pull-secret
@@ -85,3 +141,7 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: demoapp-sidecar
+          configMap:
+            name: demoapp-sidecar
+
