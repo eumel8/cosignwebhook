@@ -1,0 +1,17 @@
+{{ if .Values.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "cosignwebhook.fullname" . }}
+  labels:
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
+spec:
+  endpoints:
+    - port: metrics
+      interval: 10s
+      path: /metrics
+  selector:
+    matchLabels:
+    {{- include "cosignwebhook.selectorLabels" . | nindent 6 }}
+{{ end }}

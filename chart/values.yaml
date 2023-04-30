@@ -5,9 +5,9 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/eumel8/navlinkswebhook/navlinkswebhook
+  repository: ghcr.io/eumel8/cosignwebhook/cosignwebhook
   pullPolicy: IfNotPresent
-  tag: 0.0.1
+  tag: 2.0.4
 
 imagePullSecrets: []
 nameOverride: ""
@@ -48,7 +48,30 @@ service:
   type: ClusterIP
   monitorPort: 80
   webhookPort: 443
+  # targetPort and metricPort are static in the cosignwebhook app
+  # configurable options for later
   targetPort: 8080
+  metricPort: 8081
+
+serviceMonitor:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+# install a Grafana Dashboard (optional on a specific namespace)
+grafanaDashboard:
+  enabled: false
+#   namespace: cattle-dashboards
+
+# resources for InitContainer
+initresources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
 
 # resources for Container
 resources:
@@ -71,3 +94,24 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# verify all images before usage
+# sccosign: verify the cosign cli image itself
+# scwebhook: verify the cosign webhook image
+cosign:
+  image:
+    repository: ghcr.io/sigstore/cosign/cosign
+    tag: v2.0.0
+    pullPolicy: IfNotPresent
+  sccosign:
+    key: |
+        -----BEGIN PUBLIC KEY-----
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhyQCx0E9wQWSFI9ULGwy3BuRklnt
+        IqozONbbdbqz11hlRJy9c7SG+hdcFl9jE9uE/dwtuwU2MqU9T/cN0YkWww==
+        -----END PUBLIC KEY-----
+  scwebhook:
+    key: |
+        -----BEGIN PUBLIC KEY-----
+        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENDN3HpXY2weMYRuuJbZnNczrOyns
+        ZvVnR15G9EILCH8+elXkYy+4U70mR++XIL0iD8NhZ3kxfpFjxyHlnG5Snw==
+        -----END PUBLIC KEY-----

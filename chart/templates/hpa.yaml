@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "navlinkswebhook.fullname" . }}
+  name: {{ include "cosignwebhook.fullname" . }}
   labels:
-    {{- include "navlinkswebhook.labels" . | nindent 4 }}
+    {{- include "cosignwebhook.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "navlinkswebhook.fullname" . }}
+    name: {{ include "cosignwebhook.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
