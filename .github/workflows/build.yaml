@@ -32,7 +32,7 @@ jobs:
           DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
           MTR: mtr.devops.telekom.de
           REPO: caas
-          IMAGE: cosignwebhook
+          IMAGE: navlinkswebhook
           COSIGN_KEY: ${{secrets.COSIGN_KEY}}
           COSIGN_PASSWORD: ${{secrets.COSIGN_PASSWORD}}
       - name: Helm lint & package & push

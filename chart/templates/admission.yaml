@@ -1,14 +1,14 @@
-{{- $altNames := list ( printf "%s.%s" (include "cosignwebhook.fullname" .) .Release.Namespace ) ( printf "%s.%s.svc" (include "cosignwebhook.fullname" .) .Release.Namespace ) -}}
-{{- $ca := genCA "cosign-webhook-ca" 3650 -}}
-{{- $cert := genSignedCert ( include "cosignwebhook.fullname" . ) nil $altNames 3650 $ca -}}
+{{- $altNames := list ( printf "%s.%s" (include "navlinkswebhook.fullname" .) .Release.Namespace ) ( printf "%s.%s.svc" (include "navlinkswebhook.fullname" .) .Release.Namespace ) -}}
+{{- $ca := genCA "navlinks-webhook-ca" 3650 -}}
+{{- $cert := genSignedCert ( include "navlinkswebhook.fullname" . ) nil $altNames 3650 $ca -}}
 ---
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/tls
 metadata:
-  name: {{ include "cosignwebhook.fullname" . }}
+  name: {{ include "navlinkswebhook.fullname" . }}
   labels:
-    {{- include "cosignwebhook.labels" . | nindent 4 }}
+    {{- include "navlinkswebhook.labels" . | nindent 4 }}
 data:
   tls.crt: {{ $cert.Cert | b64enc }}
   tls.key: {{ $cert.Key | b64enc }}
@@ -16,7 +16,7 @@ data:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: {{ include "cosignwebhook.fullname" . }}
+  name: {{ include "navlinkswebhook.fullname" . }}
 webhooks:
   - admissionReviewVersions:
     - v1
@@ -28,14 +28,14 @@ webhooks:
           values: [{{ .Release.Namespace | default "default" }}{{- if .Values.admission.exclude }},{{ .Values.admission.exclude }}{{- end }}]
     clientConfig:
       service:
-        name: {{ include "cosignwebhook.fullname" . }}
+        name: {{ include "navlinkswebhook.fullname" . }}
         namespace: {{ .Release.Namespace | default "default" }}
         path: "/validate"
       caBundle: {{ $ca.Cert | b64enc }}
     rules:
       - operations: ["CREATE","UPDATE"]
-        apiGroups: [""]
+        apiGroups: ["monitoring.coreos.com"]
         apiVersions: ["v1"]
-        resources: ["pods"]
+        resources: ["prometheus"]
     failurePolicy: {{ .Values.admission.failurePolicy }}
     sideEffects: {{ .Values.admission.sideEffects }}

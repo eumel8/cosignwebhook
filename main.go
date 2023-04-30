@@ -13,25 +13,25 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
-	port = "8080"
+	port  = "8080"
 	mport = "8081"
 )
 
 var (
 	tlscert, tlskey string
-	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
-                Name: "cosign_processed_ops_total",
-                Help: "The total number of processed events",
-        })
+	opsProcessed    = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cosign_processed_ops_total",
+		Help: "The total number of processed events",
+	})
 	verifiedProcessed = promauto.NewCounter(prometheus.CounterOpts{
-                Name: "cosign_processed_verified_total",
-                Help: "The number of verfified events",
-        })
+		Name: "cosign_processed_verified_total",
+		Help: "The number of verfified events",
+	})
 )
 
 func main() {
@@ -51,17 +51,17 @@ func main() {
 	}
 
 	mserver := &http.Server{
-		Addr:      fmt.Sprintf(":%v", mport),
+		Addr: fmt.Sprintf(":%v", mport),
 	}
 
 	// define http server and server handler
-	cs := CosignServerHandler{}
+	nls := NavlinksServerHandler{}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate", cs.serve)
+	mux.HandleFunc("/validate", nls.serve)
 	server.Handler = mux
 
 	mmux := http.NewServeMux()
-	mmux.HandleFunc("/healthz", cs.healthz)
+	mmux.HandleFunc("/healthz", nls.healthz)
 	mmux.Handle("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 

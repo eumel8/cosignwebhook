@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "cosignwebhook.name" -}}
+{{- define "navlinkswebhook.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "cosignwebhook.fullname" -}}
+{{- define "navlinkswebhook.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "cosignwebhook.chart" -}}
+{{- define "navlinkswebhook.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "cosignwebhook.labels" -}}
-helm.sh/chart: {{ include "cosignwebhook.chart" . }}
-{{ include "cosignwebhook.selectorLabels" . }}
+{{- define "navlinkswebhook.labels" -}}
+helm.sh/chart: {{ include "navlinkswebhook.chart" . }}
+{{ include "navlinkswebhook.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "cosignwebhook.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "cosignwebhook.name" . }}
+{{- define "navlinkswebhook.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "navlinkswebhook.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "cosignwebhook.serviceAccountName" -}}
+{{- define "navlinkswebhook.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "cosignwebhook.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "navlinkswebhook.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

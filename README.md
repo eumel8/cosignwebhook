@@ -1,71 +1,23 @@
-# Cosign Webhook
+# Navlinks Webhook
 
-Kubernetes Validation Admission Controller to verify Cosign Image signatures.
+Kubernetes Admission Controller to create Navlinks in Rancher for Prometheus resource
 
-<img src="cosignwebhook.png" alt="cosignwebhook" width="680"/>
-
-Watch POD creating in deployments, looking for the first container image and a present RSA publik key to verify.
+Watch Prometheus creating in cluster
 
 # Installation with Helm
 
 ```bash
-helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --versi
-on 2.0.0 --create-namespace
-```
-
-this installation has some advantages:
-
-* auto generate TLS key pair
-* setup ServiceMonitor and GrafanaDashboard
-
-# Installation with manifest
-
-As Cluster Admin create a namespace and install the Admission Controller:
-
-```bash
-kubectl create namespace cosignwebhook
-kubectl -n cosignwebhook apply -f manifests/rbac.yaml
-kubectl -n cosignwebhook apply -f manifests/manifest.yaml
-```
-
-## Cert generation
-
-```bash
-generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
+helm -n navlinkswebhook upgrade -i navlinkswebhook oci://ghcr.io/caas/charts/navlinkswebhook --version 0.0.1 --create-namespace
 ```
 
 # Usage
 
-Add your Cosign public key as env var in container spec of the first container:
-
-```yaml
-        env:
-        - name: COSIGNPUBKEY
-          value: |
-              -----BEGIN PUBLIC KEY-----
-              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGOrnlJ1lFxAFTY2LF1vCuVHNZr9H
-              QryRDinn+JhPrDYR2wqCP+BUkeWja+RWrRdmskA0AffxBzaQrN/SwZI6fA==
-              -----END PUBLIC KEY-----
-```
-
-# Test
-
-Based on the signed image and the corresponding key, the demo app should appear or denied (check event log)
-
-```bash
-kubectl create namespace cosignwebhook
-kubectl -n cosignwebhook apply -f manifests/demoapp.yaml
-```
-
-# TODO
-
-* Support private images [x]
-* Support multiple container/keys
+Create `Prometheusi` resource in cluster and the Admission Controller will install Navlinks to navigate to Monitoring resources
 
 ## local build
 
 ```bash
-CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignwebhook
+CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o navlinkswebhook
 ```
 ## Credits
 

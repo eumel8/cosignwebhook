@@ -1,9 +1,9 @@
 apiVersion: v2
-name: cosignwebhook
-description: A Helm chart for Cosign Webhook Admission Controller
+name: navlinkswebhook
+description: A Helm chart for Admission Webhook to create Navlinks for Prometheus
 type: application
-version: 2.0.6
-appVersion: "2.0.6"
+version: 0.0.1
+appVersion: "0.0.1"
 maintainers:
   - name: eumel8
     email: f.kloeker@telekom.de
