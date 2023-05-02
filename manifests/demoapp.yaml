@@ -98,7 +98,7 @@ spec:
             mountPath: /tmp
       initContainers:
       - name: checkvulnerabilities
-        image: mtr.devops.telekom.de/mcsps/busybox:latest
+        image: mtr.devops.telekom.de/caas/caas-tools:latest
         env:
         - name: REGISTRY
           value: https://mtr.devops.telekom.de
@@ -107,8 +107,8 @@ spec:
         - name: TAG
           value: latest
         - name: SCORE
-          value: 9.0
-        command: ['bash', '-x', "/sidecar/run.sh"]
+          value: "9.0"
+        command: ["/sidecar/run.sh"]
         resources:
           limits:
             cpu: 100m
@@ -144,4 +144,5 @@ spec:
         - name: demoapp-sidecar
           configMap:
             name: demoapp-sidecar
+            defaultMode: 0755
 
