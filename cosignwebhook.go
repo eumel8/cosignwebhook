@@ -14,6 +14,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
+
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -22,17 +28,12 @@ import (
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
-
 )
 
 const (
 	admissionApi  = "admission.k8s.io/v1"
 	admissionKind = "AdmissionReview"
 	cosignEnvVar  = "COSIGNPUBKEY"
-)
-
-var (
-	healthy int32
 )
 
 // CosignServerHandler listen to admission requests and serve responses
@@ -44,7 +45,6 @@ type CosignServerHandler struct {
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
-	return
 }
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +219,18 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
+
+		restConfig, err := rest.InClusterConfig()
+		if err != nil {
+			glog.Errorf("error init in-cluster config: %v", err)
+		}
+		k8sclientset, err := kubernetes.NewForConfig(restConfig)
+		if err != nil {
+			glog.Errorf("error creating k8sclientset: %v", err)
+		}
+
+		// Verify Image successful, needs to allow pod start
+
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
@@ -228,6 +240,12 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
+		eventBroadcaster := record.NewBroadcaster()
+		// eventBroadcaster.StartLogging(glog.Infof)
+		eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
+		eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "cosignwebhook"})
+		eventRecorder.Eventf(&pod, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
+		eventBroadcaster.Shutdown()
 	}
 }
 
