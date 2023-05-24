@@ -14,8 +14,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	//"k8s.io/client-go/kubernetes"
-	//"k8s.io/client-go/rest"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
@@ -42,7 +44,6 @@ var (
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 type CosignServerHandler struct {
-	recorder record.EventRecorder
 }
 
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
@@ -224,19 +225,24 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		verifiedProcessed.Inc()
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 
-		/*
-			restConfig, err := rest.InClusterConfig()
-			if err != nil {
-				glog.Errorf("error init in-cluster config: %v", err)
-			}
-			k8sclientset, err := kubernetes.NewForConfig(restConfig)
-			if err != nil {
-				glog.Errorf("error creating k8sclientset: %v", err)
-			}
-		*/
+		restConfig, err := rest.InClusterConfig()
+		if err != nil {
+			glog.Errorf("error init in-cluster config: %v", err)
+		}
+		k8sclientset, err := kubernetes.NewForConfig(restConfig)
+		if err != nil {
+			glog.Errorf("error creating k8sclientset: %v", err)
+		}
+
+		eventBroadcaster := record.NewBroadcaster()
+		eventBroadcaster.StartLogging(glog.Infof)
+		eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
+		eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "cosignwebhook"})
 
 		obj := &pod
-		cs.recorder.Eventf(obj, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
+		eventRecorder.Eventf(obj, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
+		eventBroadcaster.Shutdown()
+		// Verify Image successful, needs to allow pod start
 
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
