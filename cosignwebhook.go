@@ -235,7 +235,8 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			}
 		*/
 
-		cs.recorder.Eventf(&pod, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
+		obj := &pod
+		cs.recorder.Eventf(obj, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
 
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
 		if err != nil {
