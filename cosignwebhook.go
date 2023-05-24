@@ -36,10 +36,6 @@ const (
 	cosignEnvVar  = "COSIGNPUBKEY"
 )
 
-var (
-	healthy int32
-)
-
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
@@ -49,7 +45,6 @@ type CosignServerHandler struct {
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
-	return
 }
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
@@ -234,14 +229,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("error creating k8sclientset: %v", err)
 		}
 
-		eventBroadcaster := record.NewBroadcaster()
-		eventBroadcaster.StartLogging(glog.Infof)
-		eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
-		eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "cosignwebhook"})
-
-		obj := &pod
-		eventRecorder.Eventf(obj, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
-		eventBroadcaster.Shutdown()
 		// Verify Image successful, needs to allow pod start
 
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
@@ -253,6 +240,12 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
+		eventBroadcaster := record.NewBroadcaster()
+		// eventBroadcaster.StartLogging(glog.Infof)
+		eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
+		eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "cosignwebhook"})
+		eventRecorder.Eventf(&pod, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
+		eventBroadcaster.Shutdown()
 	}
 }
 
