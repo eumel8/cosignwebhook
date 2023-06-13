@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -73,14 +72,16 @@ func getSecret(namespace string, name string) (string, error) {
 		glog.Error("Secret value empty")
 		return "", nil
 	}
-	glog.Info("To decoded value: ", string(value))
+	/*
+		glog.Info("To decoded value: ", string(value))
 
-	decodedValue, err := base64.StdEncoding.DecodeString(string(value))
-	if err != nil {
-		glog.Error("Can't decode value ", err)
-		return "", err
-	}
-	return string(decodedValue), nil
+		decodedValue, err := base64.StdEncoding.DecodeString(string(value))
+		if err != nil {
+			glog.Error("Can't decode value ", err)
+			return "", err
+		}
+	*/
+	return string(value), nil
 }
 
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
