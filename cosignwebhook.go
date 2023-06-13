@@ -57,7 +57,7 @@ func getSecret(namespace string, name string) (string, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		glog.Error("cant get InCluster config: ", err)
+		glog.Error("Can't get InCluster config: ", err)
 		return "", err
 	}
 	// creates the clientset
@@ -65,17 +65,19 @@ func getSecret(namespace string, name string) (string, error) {
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 
 	if err != nil {
-		glog.Error("cant get secret: ", err)
+		glog.Error("Can't get secret: ", err)
 		return "", err
 	}
 	value := secret.Data["COSIGNPUBKEY"]
 	if value == nil {
-		glog.Error("secret value empty")
+		glog.Error("Secret value empty")
 		return "", nil
 	}
+	glog.Error("To decoded value: ", string(value))
+
 	decodedValue, err := base64.StdEncoding.DecodeString(string(value))
 	if err != nil {
-		glog.Error("cant decode value ", err)
+		glog.Error("Can't decode value ", err)
 		return "", err
 	}
 	return string(decodedValue), nil
