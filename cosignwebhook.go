@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,10 @@ import (
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+
+	//"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -22,7 +27,6 @@ import (
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
-
 )
 
 const (
@@ -31,20 +35,55 @@ const (
 	cosignEnvVar  = "COSIGNPUBKEY"
 )
 
-var (
-	healthy int32
-)
-
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 type CosignServerHandler struct {
 }
 
+// get pubKey from Env
+func getEnv(pod *corev1.Pod) (string, error) {
+	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
+		value := pod.Spec.Containers[0].Env[i].Value
+		if pod.Spec.Containers[0].Env[i].Name == cosignEnvVar {
+			return value, nil
+		}
+	}
+	return "", fmt.Errorf("no env var found")
+}
+
+// get pubKey Secrets value by given name with kubernetes in-cluster client
+func getSecret(namespace string, name string) (string, error) {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		glog.Error("cant get InCluster config: ", err)
+		return "", err
+	}
+	// creates the clientset
+	clientset := kubernetes.NewForConfigOrDie(config)
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+
+	if err != nil {
+		glog.Error("cant get secret: ", err)
+		return "", err
+	}
+	value := secret.Data["COSIGNPUBKEY"]
+	if value == nil {
+		glog.Error("secret value empty")
+		return "", nil
+	}
+	decodedValue, err := base64.StdEncoding.DecodeString(string(value))
+	if err != nil {
+		glog.Error("cant decode value ", err)
+		return "", err
+	}
+	return string(decodedValue), nil
+}
+
 func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
-	return
 }
 
 func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
@@ -90,11 +129,18 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pubKey := ""
-	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
-		value := pod.Spec.Containers[0].Env[i].Value
-		if pod.Spec.Containers[0].Env[i].Name == cosignEnvVar {
-			pubKey = value
+	//var pubKey string
+	pubKey, err := getEnv(&pod)
+	if err != nil {
+		glog.Errorf("Error getEnv: %v", err)
+		return
+	}
+
+	if len(pubKey) == 0 {
+		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
+		if err != nil {
+			glog.Errorf("Error getSecret: %v", err)
+			return
 		}
 	}
 

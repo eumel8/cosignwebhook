@@ -16,6 +16,12 @@ data:
     	exit 1
     fi
     MANIFEST=$(curl -s -H 'Authorization: Bearer ${BEARER}' ${REGISTRY}/api/v1/repository/${REPO}|jq .tags.\"${TAG}\".manifest_digest | sed 's/\"//g')
+    echo "man ${MANIFEST}"
+    if [[ -n "$MANIFEST" ]] ; then
+    	echo "couln't fetch manifest ${REPO}/${TAG}"
+    	exit 1
+    fi
+    echo "man end"
     VULN=$(curl -s -H 'Authorization: Bearer ${BEARER}' ${REGISTRY}/api/v1/repository/${REPO}/manifest/${MANIFEST}/security | jq '.data.Layer.Features[].Vulnerabilities[]?| select (.Metadata.NVD.CVSSv3.Score != "")| select(.Metadata.NVD.CVSSv3.Score > '${SCORE}')|length')
     
     if [ -z "$VULN" ] ; then
