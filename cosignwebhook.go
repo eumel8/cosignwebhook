@@ -73,7 +73,7 @@ func getSecret(namespace string, name string) (string, error) {
 		glog.Error("Secret value empty")
 		return "", nil
 	}
-	glog.Error("To decoded value: ", string(value))
+	glog.Info("To decoded value: ", string(value))
 
 	decodedValue, err := base64.StdEncoding.DecodeString(string(value))
 	if err != nil {
