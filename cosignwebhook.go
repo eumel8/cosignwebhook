@@ -40,6 +40,26 @@ const (
 type CosignServerHandler struct {
 }
 
+// get pod object from admission request
+func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
+	arRequest := v1.AdmissionReview{}
+	if err := json.Unmarshal(byte, &arRequest); err != nil {
+		glog.Error("incorrect body")
+		return nil, nil, err
+	}
+	if arRequest.Request == nil {
+		glog.Error("AdmissionReview request not found")
+		return nil, nil, fmt.Errorf("admissionreview request not found")
+	}
+	raw := arRequest.Request.Object.Raw
+	pod := corev1.Pod{}
+	if err := json.Unmarshal(raw, &pod); err != nil {
+		glog.Error("Error deserializing pod")
+		return nil, nil, err
+	}
+	return &pod, &arRequest, nil
+}
+
 // get pubKey from Env
 func getEnv(pod *corev1.Pod) (string, error) {
 	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
@@ -48,7 +68,7 @@ func getEnv(pod *corev1.Pod) (string, error) {
 			return value, nil
 		}
 	}
-	return "", fmt.Errorf("no env var found")
+	return "", fmt.Errorf("no env var found %s/%s", pod.Namespace, pod.Name)
 }
 
 // get pubKey Secrets value by given name with kubernetes in-cluster client
@@ -56,25 +76,23 @@ func getSecret(namespace string, name string) (string, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		glog.Error("Can't get InCluster config: ", err)
+		glog.Errorf("Can't get InCluster config for %s/%s from kubernetes: %v", namespace, name, err)
 		return "", err
 	}
 	// creates the clientset
 	clientset := kubernetes.NewForConfigOrDie(config)
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-
 	if err != nil {
-		glog.Error("Can't get secret: ", err)
+		glog.Errorf("Can't get secret %s/%s from kubernetes: %v", namespace, name, err)
 		return "", err
 	}
-	value := secret.Data["COSIGNPUBKEY"]
+
+	value := secret.Data[cosignEnvVar]
 	if value == nil {
-		glog.Error("Secret value empty")
+		glog.Errorf("Secret value empty for %s/%s", namespace, name)
 		return "", nil
 	}
 	/*
-		glog.Info("To decoded value: ", string(value))
-
 		decodedValue, err := base64.StdEncoding.DecodeString(string(value))
 		if err != nil {
 			glog.Error("Can't decode value ", err)
@@ -118,31 +136,25 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	// count each request for prometheus metric
 	opsProcessed.Inc()
-	arRequest := v1.AdmissionReview{}
-	if err := json.Unmarshal(body, &arRequest); err != nil {
-		glog.Error("incorrect body")
+
+	pod, arRequest, err := getPod(body)
+	if err != nil {
+		glog.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "incorrect body", http.StatusBadRequest)
 		return
 	}
 
-	raw := arRequest.Request.Object.Raw
-	pod := corev1.Pod{}
-	if err := json.Unmarshal(raw, &pod); err != nil {
-		glog.Error("error deserializing pod")
-		return
-	}
-
 	//var pubKey string
-	pubKey, err := getEnv(&pod)
+	pubKey, err := getEnv(pod)
 	if err != nil {
-		glog.Errorf("Error getEnv: %v", err)
+		glog.Errorf("Error getEnv in %s/%s: %v", pod.Namespace, pod.Name, err)
 		return
 	}
 
 	if len(pubKey) == 0 {
 		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
-			glog.Errorf("Error getSecret: %v", err)
+			glog.Errorf("Error getSecret in %s/%s: %v", pod.Namespace, pod.Name, err)
 			return
 		}
 	}
@@ -151,7 +163,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("No pubKey env in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
-		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", &arRequest))
+		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -169,7 +181,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		glog.Errorf("Error ParseRef image: %v", err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", &arRequest))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -195,7 +207,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
 		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -210,7 +222,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
 		glog.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", &arRequest))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -225,7 +237,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	kc, err := k8schain.NewInCluster(context.Background(), opt)
 	if err != nil {
 		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", &arRequest))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -255,7 +267,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	// Verify Image failed, needs to reject pod start
 	if err != nil {
 		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
-		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", &arRequest))
+		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -268,7 +280,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
-		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", &arRequest))
+		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
