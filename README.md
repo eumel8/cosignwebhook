@@ -48,6 +48,28 @@ Add your Cosign public key as env var in container spec of the first container:
               -----END PUBLIC KEY-----
 ```
 
+or create a secret and reference it in the deployment
+
+```yaml
+apiVersion: v1
+data:
+  COSIGNPUBKEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFS1BhWUhnZEVEQ3ltcGx5emlIdkJ5UjNxRkhZdgppaWxlMCtFMEtzVzFqWkhJa1p4UWN3aGsySjNqSm5VdTdmcjcrd05DeENkVEdYQmhBSTJveE1LbWx3PT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tkind: Secret
+metadata:
+  name: cosignwebhook
+type: Opaque
+```
+
+```yaml
+        env:
+        - name: COSIGNPUBKEY
+          valueFrom:
+            secretKeyRef:
+              name: cosignwebhook
+              key: COSIGNPUBKEY
+```
+
+Note: The secret MUST be names `cosignwebhook` and the data values MIST be names `COSIGNPUBKEY`
+
 # Test
 
 Based on the signed image and the corresponding key, the demo app should appear or denied (check event log)
