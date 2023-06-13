@@ -13,10 +13,6 @@ import (
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
-
-	//"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/kubernetes"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -44,6 +40,29 @@ const (
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 type CosignServerHandler struct {
+}
+
+// create restClient for get secrets and create events
+func restClient() (*kubernetes.Clientset, error) {
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		glog.Errorf("error init in-cluster config: %v", err)
+		return nil, err
+	}
+	k8sclientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		glog.Errorf("error creating k8sclientset: %v", err)
+		return nil, err
+	}
+	return k8sclientset, err
+}
+
+func recordEvent(pod *corev1.Pod, k8sclientset *kubernetes.Clientset) {
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
+	eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook"})
+	eventRecorder.Eventf(pod, corev1.EventTypeNormal, "Cosignwebhook", "Cosign image verified")
+	eventBroadcaster.Shutdown()
 }
 
 // get pod object from admission request
@@ -79,20 +98,16 @@ func getEnv(pod *corev1.Pod) (string, error) {
 
 // get pubKey Secrets value by given name with kubernetes in-cluster client
 func getSecret(namespace string, name string) (string, error) {
-	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
+	clientset, err := restClient()
 	if err != nil {
-		glog.Errorf("Can't get InCluster config for %s/%s from kubernetes: %v", namespace, name, err)
+		glog.Errorf("Can't init rest client for secret: %v", err)
 		return "", err
 	}
-	// creates the clientset
-	clientset := kubernetes.NewForConfigOrDie(config)
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("Can't get secret %s/%s from kubernetes: %v", namespace, name, err)
 		return "", err
 	}
-
 	value := secret.Data[cosignEnvVar]
 	if value == nil {
 		glog.Errorf("Secret value empty for %s/%s", namespace, name)
@@ -288,17 +303,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 
-		restConfig, err := rest.InClusterConfig()
-		if err != nil {
-			glog.Errorf("error init in-cluster config: %v", err)
-		}
-		k8sclientset, err := kubernetes.NewForConfig(restConfig)
-		if err != nil {
-			glog.Errorf("error creating k8sclientset: %v", err)
-		}
-
 		// Verify Image successful, needs to allow pod start
-
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
@@ -307,12 +312,13 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			glog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
-		eventBroadcaster := record.NewBroadcaster()
-		// eventBroadcaster.StartLogging(glog.Infof)
-		eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
-		eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "cosignwebhook"})
-		eventRecorder.Eventf(&pod, corev1.EventTypeNormal, "cosignwebhook", "Cosign image verified")
-		eventBroadcaster.Shutdown()
+
+		clientset, err := restClient()
+		if err != nil {
+			glog.Errorf("Can't init rest client for event recorder: %v", err)
+		} else {
+			recordEvent(pod, clientset)
+		}
 	}
 }
 
