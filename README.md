@@ -68,7 +68,7 @@ type: Opaque
               key: COSIGNPUBKEY
 ```
 
-Note: The secret MUST be names `cosignwebhook` and the data values MIST be names `COSIGNPUBKEY`
+Note: The secret MUST be named `cosignwebhook` and the data values MIST be names `COSIGNPUBKEY`
 
 # Test
 
