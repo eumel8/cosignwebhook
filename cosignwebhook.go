@@ -39,8 +39,7 @@ const (
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
-type CosignServerHandler struct {
-}
+type CosignServerHandler struct{}
 
 // create restClient for get secrets and create events
 func restClient() (*kubernetes.Clientset, error) {
@@ -165,23 +164,20 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//var pubKey string
 	pubKey, err := getEnv(pod)
 	if err != nil {
-		glog.Errorf("Error getEnv in %s/%s: %v", pod.Namespace, pod.Name, err)
-		return
+		glog.Warningf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
 	if len(pubKey) == 0 {
 		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
-			glog.Errorf("Error getSecret in %s/%s: %v", pod.Namespace, pod.Name, err)
-			return
+			glog.Warningf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}
 
 	if len(pubKey) == 0 {
-		glog.Errorf("No pubKey env in %s/%s", pod.Namespace, pod.Name)
+		glog.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
@@ -195,11 +191,11 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	glog.Info("Successfully got public key")
 
 	// Lookup image name of first container
 	image := pod.Spec.Containers[0].Image
 	refImage, err := name.ParseReference(image)
-
 	if err != nil {
 		glog.Errorf("Error ParseRef image: %v", err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", arRequest))
@@ -278,8 +274,8 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			RegistryClientOpts: remoteOpts,
 			SigVerifier:        cosignLoadKey,
 			// add settings for cosign 2.0
-			//IgnoreSCT:      true,
-			//SkipTlogVerify: true,
+			// IgnoreSCT:      true,
+			// SkipTlogVerify: true,
 		})
 
 	// this is always false,
@@ -302,7 +298,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		verifiedProcessed.Inc()
 		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
-
 		// Verify Image successful, needs to allow pod start
 		if err != nil {
 			glog.Errorf("Can't encode response: %v", err)
