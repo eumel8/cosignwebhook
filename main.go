@@ -38,7 +38,7 @@ var (
 func main() {
 	flag.StringVar(&tlscert, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	flag.StringVar(&tlskey, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to --tlsCertFile.")
-	//flag.Set("alsologtostderr", "true")
+	flag.Set("alsologtostderr", "true")
 	flag.Parse()
 
 	slog.GetFormatter().(*slog.TextFormatter).SetTemplate(logTemplate)
