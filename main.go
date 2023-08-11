@@ -10,39 +10,43 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/golang/glog"
+	"github.com/gookit/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
-	port = "8080"
-	mport = "8081"
+	port        = "8080"
+	mport       = "8081"
+	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} {{data}} {{extra}} \n"
 )
 
 var (
 	tlscert, tlskey string
-	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
-                Name: "cosign_processed_ops_total",
-                Help: "The total number of processed events",
-        })
+	opsProcessed    = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cosign_processed_ops_total",
+		Help: "The total number of processed events",
+	})
 	verifiedProcessed = promauto.NewCounter(prometheus.CounterOpts{
-                Name: "cosign_processed_verified_total",
-                Help: "The number of verfified events",
-        })
+		Name: "cosign_processed_verified_total",
+		Help: "The number of verfified events",
+	})
 )
 
 func main() {
 	flag.StringVar(&tlscert, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	flag.StringVar(&tlskey, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to --tlsCertFile.")
-
+	//flag.Set("alsologtostderr", "true")
 	flag.Parse()
 
+	slog.GetFormatter().(*slog.TextFormatter).SetTemplate(logTemplate)
+
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
+
 	if err != nil {
-		glog.Errorf("Filed to load key pair: %v", err)
+		slog.Errorf("Failed to load key pair: ", err)
 	}
 
 	server := &http.Server{
@@ -51,7 +55,7 @@ func main() {
 	}
 
 	mserver := &http.Server{
-		Addr:      fmt.Sprintf(":%v", mport),
+		Addr: fmt.Sprintf(":%v", mport),
 	}
 
 	// define http server and server handler
@@ -68,23 +72,23 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			glog.Errorf("Failed to listen and serve webhook server: %v", err)
+			slog.Errorf("Failed to listen and serve webhook server ", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			glog.Errorf("Failed to listen and serve minitor server: %v", err)
+			slog.Errorf("Failed to listen and serve minitor server ", err)
 		}
 	}()
 
-	glog.Infof("Server running listening in port: %s,%s", port, mport)
+	slog.Infof("Server running listening in port: %s,%s", port, mport)
 
 	// listening shutdown singal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	glog.Info("Got shutdown signal, shutting down webhook server gracefully...")
+	slog.Info("Got shutdown signal, shutting down webhook server gracefully...")
 	server.Shutdown(context.Background())
 	mserver.Shutdown(context.Background())
 }

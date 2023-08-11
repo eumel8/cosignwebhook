@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/golang/glog"
+	"github.com/gookit/slog"
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,12 +45,12 @@ type CosignServerHandler struct{}
 func restClient() (*kubernetes.Clientset, error) {
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
-		glog.Errorf("error init in-cluster config: %v", err)
+		slog.Errorf("error init in-cluster config: %v", err)
 		return nil, err
 	}
 	k8sclientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		glog.Errorf("error creating k8sclientset: %v", err)
+		slog.Errorf("error creating k8sclientset: %v", err)
 		return nil, err
 	}
 	return k8sclientset, err
@@ -68,17 +68,17 @@ func recordEvent(pod *corev1.Pod, k8sclientset *kubernetes.Clientset) {
 func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(byte, &arRequest); err != nil {
-		glog.Error("incorrect body")
+		slog.Error("incorrect body")
 		return nil, nil, err
 	}
 	if arRequest.Request == nil {
-		glog.Error("AdmissionReview request not found")
+		slog.Error("AdmissionReview request not found")
 		return nil, nil, fmt.Errorf("admissionreview request not found")
 	}
 	raw := arRequest.Request.Object.Raw
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
-		glog.Error("Error deserializing pod")
+		slog.Error("Error deserializing pod")
 		return nil, nil, err
 	}
 	return &pod, &arRequest, nil
@@ -99,23 +99,23 @@ func getEnv(pod *corev1.Pod) (string, error) {
 func getSecret(namespace string, name string) (string, error) {
 	clientset, err := restClient()
 	if err != nil {
-		glog.Errorf("Can't init rest client for secret: %v", err)
+		slog.Errorf("Can't init rest client for secret: %v", err)
 		return "", err
 	}
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		glog.Errorf("Can't get secret %s/%s from kubernetes: %v", namespace, name, err)
+		slog.Errorf("Can't get secret %s/%s from kubernetes: %v", namespace, name, err)
 		return "", err
 	}
 	value := secret.Data[cosignEnvVar]
 	if value == nil {
-		glog.Errorf("Secret value empty for %s/%s", namespace, name)
+		slog.Warnf("Secret value empty for %s/%s", namespace, name)
 		return "", nil
 	}
 	/*
 		decodedValue, err := base64.StdEncoding.DecodeString(string(value))
 		if err != nil {
-			glog.Error("Can't decode value ", err)
+			flog.Error("Can't decode value ", err)
 			return "", err
 		}
 	*/
@@ -143,13 +143,13 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
-		glog.Error("no validate")
+		slog.Error("No validate URI")
 		http.Error(w, "no validate", http.StatusBadRequest)
 		return
 	}
 
 	if len(body) == 0 {
-		glog.Error("empty body")
+		slog.Error("Empty body")
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
@@ -159,52 +159,52 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	pod, arRequest, err := getPod(body)
 	if err != nil {
-		glog.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "incorrect body", http.StatusBadRequest)
 		return
 	}
 
 	pubKey, err := getEnv(pod)
 	if err != nil {
-		glog.Warningf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
+		slog.Warnf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
 	if len(pubKey) == 0 {
 		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
-			glog.Warningf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Warnf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}
 
 	if len(pubKey) == 0 {
-		glog.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
+		slog.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response: %v", err)
+			slog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			slog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
 	}
-	glog.Info("Successfully got public key")
+	// slog.Info("Successfully got public key")
 
 	// Lookup image name of first container
 	image := pod.Spec.Containers[0].Image
 	refImage, err := name.ParseReference(image)
 	if err != nil {
-		glog.Errorf("Error ParseRef image: %v", err)
+		slog.Errorf("Error ParseRef image: %v", err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			slog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
@@ -223,14 +223,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			slog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
@@ -238,14 +238,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
-		glog.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Errorf("Can't write response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
@@ -253,14 +253,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	kc, err := k8schain.NewInCluster(context.Background(), opt)
 	if err != nil {
-		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			slog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			slog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
@@ -279,38 +279,38 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		})
 
 	// this is always false,
-	// glog.Info("Resp bundleVerified: ", bundleVerified)
+	// slog.Info("Resp bundleVerified: ", bundleVerified)
 
 	// Verify Image failed, needs to reject pod start
 	if err != nil {
-		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response: %v", err)
+			slog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			slog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
-		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
+		slog.Infof("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 		// Verify Image successful, needs to allow pod start
 		if err != nil {
-			glog.Errorf("Can't encode response: %v", err)
+			slog.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			slog.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 
 		clientset, err := restClient()
 		if err != nil {
-			glog.Errorf("Can't init rest client for event recorder: %v", err)
+			slog.Errorf("Can't init rest client for event recorder: %v", err)
 		} else {
 			recordEvent(pod, clientset)
 		}

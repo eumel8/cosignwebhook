@@ -336,6 +336,31 @@ github.com/google/gofuzz/bytesource
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
+# github.com/gookit/color v1.5.4
+## explicit; go 1.18
+github.com/gookit/color
+# github.com/gookit/goutil v0.6.12
+## explicit; go 1.18
+github.com/gookit/goutil
+github.com/gookit/goutil/arrutil
+github.com/gookit/goutil/basefn
+github.com/gookit/goutil/byteutil
+github.com/gookit/goutil/comdef
+github.com/gookit/goutil/goinfo
+github.com/gookit/goutil/internal/checkfn
+github.com/gookit/goutil/internal/comfunc
+github.com/gookit/goutil/maputil
+github.com/gookit/goutil/mathutil
+github.com/gookit/goutil/reflects
+github.com/gookit/goutil/stdio
+github.com/gookit/goutil/structs
+github.com/gookit/goutil/strutil
+# github.com/gookit/gsr v0.1.0
+## explicit; go 1.18
+github.com/gookit/gsr
+# github.com/gookit/slog v0.5.4
+## explicit; go 1.18
+github.com/gookit/slog
 # github.com/hashicorp/hcl v1.0.0
 ## explicit
 github.com/hashicorp/hcl
@@ -599,9 +624,15 @@ github.com/transparency-dev/merkle
 github.com/transparency-dev/merkle/compact
 github.com/transparency-dev/merkle/proof
 github.com/transparency-dev/merkle/rfc6962
+# github.com/valyala/bytebufferpool v1.0.0
+## explicit
+github.com/valyala/bytebufferpool
 # github.com/vbatts/tar-split v0.11.2
 ## explicit; go 1.15
 github.com/vbatts/tar-split/archive/tar
+# github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+## explicit; go 1.19
+github.com/xo/terminfo
 # go.mongodb.org/mongo-driver v1.10.1
 ## explicit; go 1.10
 go.mongodb.org/mongo-driver/bson
@@ -672,7 +703,7 @@ golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/exp v0.0.0-20220823124025-807a23277127
+# golang.org/x/exp v0.0.0-20220909182711-5c715a9e8561
 ## explicit; go 1.18
 golang.org/x/exp/constraints
 golang.org/x/exp/slices
@@ -695,10 +726,10 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.1.0
-## explicit
+# golang.org/x/sync v0.3.0
+## explicit; go 1.17
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.6.0
+# golang.org/x/sys v0.10.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
@@ -706,10 +737,10 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.6.0
+# golang.org/x/term v0.10.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.8.0
+# golang.org/x/text v0.11.0
 ## explicit; go 1.17
 golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
@@ -720,6 +751,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
+golang.org/x/text/width
 # golang.org/x/time v0.2.0
 ## explicit
 golang.org/x/time/rate
