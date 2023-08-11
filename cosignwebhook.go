@@ -296,7 +296,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
-		slog.Infof("Image successful verified: ", pod.Namespace, "/", pod.Name)
+		slog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 		// Verify Image successful, needs to allow pod start
 		if err != nil {
