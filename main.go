@@ -20,7 +20,8 @@ import (
 const (
 	port        = "8080"
 	mport       = "8081"
-	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} {{data}} {{extra}} \n"
+	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} \n"
+	//logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} {{data}} {{extra}} \n"
 )
 
 var (
