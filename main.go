@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gookit/slog"
+	log "github.com/gookit/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -42,12 +42,12 @@ func main() {
 	flag.Set("alsologtostderr", "true")
 	flag.Parse()
 
-	slog.GetFormatter().(*slog.TextFormatter).SetTemplate(logTemplate)
+	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
 
 	if err != nil {
-		slog.Errorf("Failed to load key pair: ", err)
+		log.Errorf("Failed to load key pair: ", err)
 	}
 
 	server := &http.Server{
@@ -73,23 +73,23 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			slog.Errorf("Failed to listen and serve webhook server ", err)
+			log.Errorf("Failed to listen and serve webhook server ", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			slog.Errorf("Failed to listen and serve minitor server ", err)
+			log.Errorf("Failed to listen and serve minitor server ", err)
 		}
 	}()
 
-	slog.Infof("Server running listening in port: %s,%s", port, mport)
+	log.Infof("Server running listening in port: %s,%s", port, mport)
 
 	// listening shutdown singal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	slog.Info("Got shutdown signal, shutting down webhook server gracefully...")
+	log.Info("Got shutdown signal, shutting down webhook server gracefully...")
 	server.Shutdown(context.Background())
 	mserver.Shutdown(context.Background())
 }
