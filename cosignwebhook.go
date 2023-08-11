@@ -68,7 +68,7 @@ func recordEvent(pod *corev1.Pod, k8sclientset *kubernetes.Clientset) {
 func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(byte, &arRequest); err != nil {
-		slog.Error("incorrect body")
+		slog.Error("Incorrect body")
 		return nil, nil, err
 	}
 	if arRequest.Request == nil {
@@ -164,11 +164,13 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get public key from environment var
 	pubKey, err := getEnv(pod)
 	if err != nil {
 		slog.Warnf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
+	// If no public key get here, try to load from secret
 	if len(pubKey) == 0 {
 		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
@@ -176,8 +178,9 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Still no public key, we don't care. Otherwise POD won't start, if we return with 403
 	if len(pubKey) == 0 {
-		slog.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
+		// slog.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
@@ -221,6 +224,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		ImagePullSecrets:   imagePullSecrets,
 	}
 
+	// Encrypt public key
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
 		slog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
@@ -236,6 +240,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load public key to verify
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
 		slog.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
@@ -251,6 +256,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Kubernetes client to operate in cluster
 	kc, err := k8schain.NewInCluster(context.Background(), opt)
 	if err != nil {
 		slog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
@@ -266,6 +272,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify signature on remote image with the presented public key
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
@@ -296,7 +303,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
-		slog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
+		slog.Info("Image successful verified: ",pod.Namespace,"/",pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 		// Verify Image successful, needs to allow pod start
 		if err != nil {
@@ -308,6 +315,7 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 
+		// Just another K8S client to record events
 		clientset, err := restClient()
 		if err != nil {
 			slog.Errorf("Can't init rest client for event recorder: %v", err)
