@@ -104,7 +104,7 @@ func getSecret(namespace string, name string) (string, error) {
 	}
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Can't get secret %s/%s from kubernetes: %v", namespace, name, err)
+		log.Warnf("Can't get secret %s/%s : %v", namespace, name, err)
 		return "", err
 	}
 	value := secret.Data[cosignEnvVar]
