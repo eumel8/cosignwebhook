@@ -30,7 +30,8 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           args:
-            - -logLevel {{ .Values.logLevel | default "info" }}
+            - -logLevel
+            - {{ .Values.logLevel | default "info" }}
           env:
           - name: COSIGNPUBKEY
             value: {{- toYaml .Values.cosign.key | indent 12 }}
