@@ -167,14 +167,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	// Get public key from environment var
 	pubKey, err := getEnv(pod)
 	if err != nil {
-		log.Warnf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
+		log.Debugf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
 	// If no public key get here, try to load from secret
 	if len(pubKey) == 0 {
 		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
-			log.Warnf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Debugf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}
 
