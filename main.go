@@ -21,7 +21,6 @@ const (
 	port        = "8080"
 	mport       = "8081"
 	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} \n"
-	//logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} {{data}} {{extra}} \n"
 )
 
 var (
@@ -37,10 +36,29 @@ var (
 )
 
 func main() {
+	// parse arguments
 	flag.StringVar(&tlscert, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	flag.StringVar(&tlskey, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to --tlsCertFile.")
-	flag.Set("alsologtostderr", "true")
+	logLevel := flag.String("logLevel", "info", "loglevel of app, e.g info, debug, warn, error, fatal")
 	flag.Parse()
+
+	// set log level
+	switch *logLevel {
+	case "fatal":
+		slog.SetLogLevel(slog.Level(slog.FatalLevel))
+	case "trace":
+		slog.SetLogLevel(slog.Level(slog.TraceLevel))
+	case "debug":
+		slog.SetLogLevel(slog.Level(slog.DebugLevel))
+	case "error":
+		slog.SetLogLevel(slog.Level(slog.ErrorLevel))
+	case "warn":
+		slog.SetLogLevel(slog.Level(slog.WarnLevel))
+	case "info":
+		slog.SetLogLevel(slog.Level(slog.InfoLevel))
+	default:
+		slog.SetLogLevel(slog.Level(slog.InfoLevel))
+	}
 
 	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
 

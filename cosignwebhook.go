@@ -104,18 +104,18 @@ func getSecret(namespace string, name string) (string, error) {
 	}
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		log.Warnf("Can't get secret %s/%s : %v", namespace, name, err)
+		log.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
 		return "", err
 	}
 	value := secret.Data[cosignEnvVar]
 	if value == nil {
-		log.Warnf("Secret value empty for %s/%s", namespace, name)
+		log.Debugf("Secret value empty for %s/%s", namespace, name)
 		return "", nil
 	}
 	/*
 		decodedValue, err := base64.StdEncoding.DecodeString(string(value))
 		if err != nil {
-			flog.Error("Can't decode value ", err)
+			log.Errorf("Can't decode value ", err)
 			return "", err
 		}
 	*/
