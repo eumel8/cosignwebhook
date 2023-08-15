@@ -45,19 +45,19 @@ func main() {
 	// set log level
 	switch *logLevel {
 	case "fatal":
-		slog.SetLogLevel(slog.Level(slog.FatalLevel))
+		log.SetLogLevel(log.Level(log.FatalLevel))
 	case "trace":
-		slog.SetLogLevel(slog.Level(slog.TraceLevel))
+		log.SetLogLevel(log.Level(log.TraceLevel))
 	case "debug":
-		slog.SetLogLevel(slog.Level(slog.DebugLevel))
+		log.SetLogLevel(log.Level(log.DebugLevel))
 	case "error":
-		slog.SetLogLevel(slog.Level(slog.ErrorLevel))
+		log.SetLogLevel(log.Level(log.ErrorLevel))
 	case "warn":
-		slog.SetLogLevel(slog.Level(slog.WarnLevel))
+		log.SetLogLevel(log.Level(log.WarnLevel))
 	case "info":
-		slog.SetLogLevel(slog.Level(slog.InfoLevel))
+		log.SetLogLevel(log.Level(log.InfoLevel))
 	default:
-		slog.SetLogLevel(slog.Level(slog.InfoLevel))
+		log.SetLogLevel(log.Level(log.InfoLevel))
 	}
 
 	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
