@@ -10,39 +10,62 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/golang/glog"
+	log "github.com/gookit/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
-	port = "8080"
-	mport = "8081"
+	port        = "8080"
+	mport       = "8081"
+	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} \n"
 )
 
 var (
 	tlscert, tlskey string
-	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
-                Name: "cosign_processed_ops_total",
-                Help: "The total number of processed events",
-        })
+	opsProcessed    = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cosign_processed_ops_total",
+		Help: "The total number of processed events",
+	})
 	verifiedProcessed = promauto.NewCounter(prometheus.CounterOpts{
-                Name: "cosign_processed_verified_total",
-                Help: "The number of verfified events",
-        })
+		Name: "cosign_processed_verified_total",
+		Help: "The number of verfified events",
+	})
 )
 
 func main() {
+	// parse arguments
 	flag.StringVar(&tlscert, "tlsCertFile", "/etc/certs/tls.crt", "File containing the x509 Certificate for HTTPS.")
 	flag.StringVar(&tlskey, "tlsKeyFile", "/etc/certs/tls.key", "File containing the x509 private key to --tlsCertFile.")
-
+	logLevel := flag.String("logLevel", "info", "loglevel of app, e.g info, debug, warn, error, fatal")
 	flag.Parse()
 
+	// set log level
+	switch *logLevel {
+	case "fatal":
+		log.SetLogLevel(log.Level(log.FatalLevel))
+	case "trace":
+		log.SetLogLevel(log.Level(log.TraceLevel))
+	case "debug":
+		log.SetLogLevel(log.Level(log.DebugLevel))
+	case "error":
+		log.SetLogLevel(log.Level(log.ErrorLevel))
+	case "warn":
+		log.SetLogLevel(log.Level(log.WarnLevel))
+	case "info":
+		log.SetLogLevel(log.Level(log.InfoLevel))
+	default:
+		log.SetLogLevel(log.Level(log.InfoLevel))
+	}
+
+	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
+
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
+
 	if err != nil {
-		glog.Errorf("Filed to load key pair: %v", err)
+		log.Errorf("Failed to load key pair: ", err)
 	}
 
 	server := &http.Server{
@@ -51,7 +74,7 @@ func main() {
 	}
 
 	mserver := &http.Server{
-		Addr:      fmt.Sprintf(":%v", mport),
+		Addr: fmt.Sprintf(":%v", mport),
 	}
 
 	// define http server and server handler
@@ -68,23 +91,23 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			glog.Errorf("Failed to listen and serve webhook server: %v", err)
+			log.Errorf("Failed to listen and serve webhook server ", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			glog.Errorf("Failed to listen and serve minitor server: %v", err)
+			log.Errorf("Failed to listen and serve minitor server ", err)
 		}
 	}()
 
-	glog.Infof("Server running listening in port: %s,%s", port, mport)
+	log.Infof("Server running listening in port: %s,%s", port, mport)
 
 	// listening shutdown singal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	glog.Info("Got shutdown signal, shutting down webhook server gracefully...")
+	log.Info("Got shutdown signal, shutting down webhook server gracefully...")
 	server.Shutdown(context.Background())
 	mserver.Shutdown(context.Background())
 }

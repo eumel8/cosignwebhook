@@ -30,10 +30,8 @@ spec:
       containers:
         - name: {{ .Chart.Name }}
           args:
-            - -alsologtostderr
-            - 2>&1
-            # - --log_dir=/
-            # - -v=10
+            - -logLevel
+            - {{ .Values.logLevel | default "info" }}
           env:
           - name: COSIGNPUBKEY
             value: {{- toYaml .Values.cosign.key | indent 12 }}

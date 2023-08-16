@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/golang/glog"
+	log "github.com/gookit/slog"
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,12 +45,12 @@ type CosignServerHandler struct{}
 func restClient() (*kubernetes.Clientset, error) {
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
-		glog.Errorf("error init in-cluster config: %v", err)
+		log.Errorf("error init in-cluster config: %v", err)
 		return nil, err
 	}
 	k8sclientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		glog.Errorf("error creating k8sclientset: %v", err)
+		log.Errorf("error creating k8sclientset: %v", err)
 		return nil, err
 	}
 	return k8sclientset, err
@@ -68,17 +68,17 @@ func recordEvent(pod *corev1.Pod, k8sclientset *kubernetes.Clientset) {
 func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(byte, &arRequest); err != nil {
-		glog.Error("incorrect body")
+		log.Error("Incorrect body")
 		return nil, nil, err
 	}
 	if arRequest.Request == nil {
-		glog.Error("AdmissionReview request not found")
+		log.Error("AdmissionReview request not found")
 		return nil, nil, fmt.Errorf("admissionreview request not found")
 	}
 	raw := arRequest.Request.Object.Raw
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
-		glog.Error("Error deserializing pod")
+		log.Error("Error deserializing pod")
 		return nil, nil, err
 	}
 	return &pod, &arRequest, nil
@@ -99,23 +99,23 @@ func getEnv(pod *corev1.Pod) (string, error) {
 func getSecret(namespace string, name string) (string, error) {
 	clientset, err := restClient()
 	if err != nil {
-		glog.Errorf("Can't init rest client for secret: %v", err)
+		log.Errorf("Can't init rest client for secret: %v", err)
 		return "", err
 	}
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		glog.Errorf("Can't get secret %s/%s from kubernetes: %v", namespace, name, err)
+		log.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
 		return "", err
 	}
 	value := secret.Data[cosignEnvVar]
 	if value == nil {
-		glog.Errorf("Secret value empty for %s/%s", namespace, name)
+		log.Debugf("Secret value empty for %s/%s", namespace, name)
 		return "", nil
 	}
 	/*
 		decodedValue, err := base64.StdEncoding.DecodeString(string(value))
 		if err != nil {
-			glog.Error("Can't decode value ", err)
+			log.Errorf("Can't decode value ", err)
 			return "", err
 		}
 	*/
@@ -143,13 +143,13 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
-		glog.Error("no validate")
+		log.Error("No validate URI")
 		http.Error(w, "no validate", http.StatusBadRequest)
 		return
 	}
 
 	if len(body) == 0 {
-		glog.Error("empty body")
+		log.Error("Empty body")
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
@@ -159,52 +159,55 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 	pod, arRequest, err := getPod(body)
 	if err != nil {
-		glog.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
+		log.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "incorrect body", http.StatusBadRequest)
 		return
 	}
 
+	// Get public key from environment var
 	pubKey, err := getEnv(pod)
 	if err != nil {
-		glog.Warningf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
+		log.Debugf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
+	// If no public key get here, try to load from secret
 	if len(pubKey) == 0 {
 		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
-			glog.Warningf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Debugf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}
 
+	// Still no public key, we don't care. Otherwise POD won't start, if we return with 403
 	if len(pubKey) == 0 {
-		glog.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
+		// log.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response: %v", err)
+			log.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			log.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
 	}
-	glog.Info("Successfully got public key")
+	// log.Info("Successfully got public key")
 
 	// Lookup image name of first container
 	image := pod.Spec.Containers[0].Image
 	refImage, err := name.ParseReference(image)
 	if err != nil {
-		glog.Errorf("Error ParseRef image: %v", err)
+		log.Errorf("Error ParseRef image: %v", err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			log.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
@@ -221,51 +224,55 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		ImagePullSecrets:   imagePullSecrets,
 	}
 
+	// Encrypt public key
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		glog.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
+		log.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			log.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
 	}
 
+	// Load public key to verify
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
-		glog.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
+		log.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Can't write response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
 	}
 
+	// Kubernetes client to operate in cluster
 	kc, err := k8schain.NewInCluster(context.Background(), opt)
 	if err != nil {
-		glog.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
+		log.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			log.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 		return
 	}
 
+	// Verify signature on remote image with the presented public key
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
@@ -279,38 +286,39 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		})
 
 	// this is always false,
-	// glog.Info("Resp bundleVerified: ", bundleVerified)
+	// log.Info("Resp bundleVerified: ", bundleVerified)
 
 	// Verify Image failed, needs to reject pod start
 	if err != nil {
-		glog.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
+		log.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
 		resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", arRequest))
 		if err != nil {
-			glog.Errorf("Can't encode response: %v", err)
+			log.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			log.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 	} else {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
-		glog.Info("Image successful verified: ", pod.Namespace, "/", pod.Name)
+		log.Infof("Image successful verified: %s/%s", pod.Namespace, pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 		// Verify Image successful, needs to allow pod start
 		if err != nil {
-			glog.Errorf("Can't encode response: %v", err)
+			log.Errorf("Can't encode response: %v", err)
 			http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		}
 		if _, err := w.Write(resp); err != nil {
-			glog.Errorf("Can't write response: %v", err)
+			log.Errorf("Can't write response: %v", err)
 			http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		}
 
+		// Just another K8S client to record events
 		clientset, err := restClient()
 		if err != nil {
-			glog.Errorf("Can't init rest client for event recorder: %v", err)
+			log.Errorf("Can't init rest client for event recorder: %v", err)
 		} else {
 			recordEvent(pod, clientset)
 		}
