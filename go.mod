@@ -1,9 +1,8 @@
 module main.go
 
-go 1.20
+go 1.21
 
 require (
-	github.com/golang/glog v1.0.0
 	github.com/google/go-containerregistry v0.12.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230104193340-e797859b62b6
 	github.com/gookit/slog v0.5.4
