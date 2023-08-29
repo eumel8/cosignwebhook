@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	log "github.com/gookit/slog"
 	v1 "k8s.io/api/admission/v1"
@@ -23,8 +24,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	ociremote "github.com/sigstore/cosign/pkg/oci/remote"
 	"github.com/sigstore/cosign/v2/pkg/cosign"
+	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
@@ -39,7 +40,19 @@ const (
 // CosignServerHandler listen to admission requests and serve responses
 // build certs here: https://raw.githubusercontent.com/openshift/external-dns-operator/fb77a3c547a09cd638d4e05a7b8cb81094ff2476/hack/generate-certs.sh
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
-type CosignServerHandler struct{}
+type CosignServerHandler struct {
+	cs kubernetes.Interface
+}
+
+func NewCosignServerHandler() *CosignServerHandler {
+	cs, err := restClient()
+	if err != nil {
+		log.Errorf("Can't init rest client: %v", err)
+	}
+	return &CosignServerHandler{
+		cs: cs,
+	}
+}
 
 // create restClient for get secrets and create events
 func restClient() (*kubernetes.Clientset, error) {
@@ -84,50 +97,49 @@ func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	return &pod, &arRequest, nil
 }
 
-// get pubKey from Env
-func getEnv(pod *corev1.Pod) (string, error) {
+// getPubKeyFromEnv grabs the public key from Pod's environment
+func (csh *CosignServerHandler) getPubKeyFromEnv(pod *corev1.Pod) (string, error) {
 	for i := 0; i < len(pod.Spec.Containers[0].Env); i++ {
-		value := pod.Spec.Containers[0].Env[i].Value
 		if pod.Spec.Containers[0].Env[i].Name == cosignEnvVar {
-			return value, nil
+
+			if len(pod.Spec.Containers[0].Env[i].Value) != 0 {
+				log.Debugf("Found public key in env var %s/%s", pod.Namespace, pod.Name)
+				return pod.Spec.Containers[0].Env[i].Value, nil
+			}
+
+			if pod.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef != nil {
+				log.Debugf("Found public key in secret of %s/%s", pod.Namespace, pod.Name)
+				return csh.getSecret(pod.Namespace, pod.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name)
+			}
 		}
 	}
-	return "", fmt.Errorf("no env var found %s/%s", pod.Namespace, pod.Name)
+	return "", fmt.Errorf("no env var found in %s/%s", pod.Namespace, pod.Name)
 }
 
 // get pubKey Secrets value by given name with kubernetes in-cluster client
-func getSecret(namespace string, name string) (string, error) {
-	clientset, err := restClient()
-	if err != nil {
-		log.Errorf("Can't init rest client for secret: %v", err)
-		return "", err
-	}
-	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func (csh *CosignServerHandler) getSecret(namespace string, name string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	secret, err := csh.cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		log.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
 		return "", err
 	}
 	value := secret.Data[cosignEnvVar]
-	if value == nil {
-		log.Debugf("Secret value empty for %s/%s", namespace, name)
-		return "", nil
+	if len(value) == 0 {
+		log.Errorf("Secret value (%s) is empty for %s/%s", value, namespace, name)
+		return "", fmt.Errorf("secret value empty for %s/%s", namespace, name)
 	}
-	/*
-		decodedValue, err := base64.StdEncoding.DecodeString(string(value))
-		if err != nil {
-			log.Errorf("Can't decode value ", err)
-			return "", err
-		}
-	*/
+	log.Debugf("Found public key in secret %s/%s, value: %s", namespace, name, value)
 	return string(value), nil
 }
 
-func (cs *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
+func (csh *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
 }
 
-func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
+func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
 		if data, err := io.ReadAll(r.Body); err == nil {
@@ -165,14 +177,14 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get public key from environment var
-	pubKey, err := getEnv(pod)
+	pubKey, err := csh.getPubKeyFromEnv(pod)
 	if err != nil {
 		log.Debugf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
 	// If no public key get here, try to load from secret
 	if len(pubKey) == 0 {
-		pubKey, err = getSecret(pod.Namespace, "cosignwebhook")
+		pubKey, err = csh.getSecret(pod.Namespace, "cosignwebhook")
 		if err != nil {
 			log.Debugf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
@@ -194,7 +206,6 @@ func (cs *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	// log.Info("Successfully got public key")
 
 	// Lookup image name of first container
 	image := pod.Spec.Containers[0].Image
