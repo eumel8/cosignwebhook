@@ -20,7 +20,7 @@ this installation has some advantages:
 
 # Installation with manifest
 
-As Cluster Admin create a namespace and install the Admission Controller:
+As Cluster Admin, create a namespace and install the Admission Controller:
 
 ```bash
 kubectl create namespace cosignwebhook
@@ -40,8 +40,8 @@ Add your Cosign public key as env var in container spec of the first container:
 
 ```yaml
         env:
-        - name: COSIGNPUBKEY
-          value: |
+          - name: COSIGNPUBKEY
+            value: |
               -----BEGIN PUBLIC KEY-----
               MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGOrnlJ1lFxAFTY2LF1vCuVHNZr9H
               QryRDinn+JhPrDYR2wqCP+BUkeWja+RWrRdmskA0AffxBzaQrN/SwZI6fA==
@@ -52,8 +52,9 @@ or create a secret and reference it in the deployment
 
 ```yaml
 apiVersion: v1
+kind: Secret
 data:
-  COSIGNPUBKEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFS1BhWUhnZEVEQ3ltcGx5emlIdkJ5UjNxRkhZdgppaWxlMCtFMEtzVzFqWkhJa1p4UWN3aGsySjNqSm5VdTdmcjcrd05DeENkVEdYQmhBSTJveE1LbWx3PT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tkind: Secret
+  COSIGNPUBKEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFS1BhWUhnZEVEQ3ltcGx5emlIdkJ5UjNxRkhZdgppaWxlMCtFMEtzVzFqWkhJa1p4UWN3aGsySjNqSm5VdTdmcjcrd05DeENkVEdYQmhBSTJveE1LbWx3PT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t
 metadata:
   name: cosignwebhook
 type: Opaque
@@ -61,14 +62,14 @@ type: Opaque
 
 ```yaml
         env:
-        - name: COSIGNPUBKEY
-          valueFrom:
-            secretKeyRef:
-              name: cosignwebhook
-              key: COSIGNPUBKEY
+          - name: COSIGNPUBKEY
+            valueFrom:
+              secretKeyRef:
+                name: cosignwebhook
+                key: COSIGNPUBKEY
 ```
 
-Note: The secret MUST be named `cosignwebhook` and the data values MIST be names `COSIGNPUBKEY`
+Note: The secret MUST be named `cosignwebhook` and the data values MUST be names `COSIGNPUBKEY`
 
 # Test
 
@@ -81,19 +82,21 @@ kubectl -n cosignwebhook apply -f manifests/demoapp.yaml
 
 # TODO
 
-* Support private images [x]
-* Support multiple container/keys
+* [x] Support private images
+* [ ] [x]Support multiple container/keys
 
 ## local build
 
 ```bash
 CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignwebhook
 ```
+
 ## Credits
 
 Frank Kloeker f.kloeker@telekom.de
 
-Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull request.
+Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull
+request.
 
 The Operator is inspired by [@pipo02mix](https://github.com/pipo02mix/grumpy), a good place
 to learn fundamental things about Admission Controllert
