@@ -102,7 +102,7 @@ func main() {
 
 	log.Infof("Server running listening in port: %s,%s", port, mport)
 
-	// listening shutdown singal
+	// listening shutdown signal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
