@@ -1,4 +1,4 @@
-module main.go
+module github.com/eumel8/cosignwebhook
 
 go 1.20
 
