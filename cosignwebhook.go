@@ -109,15 +109,18 @@ func (csh *CosignServerHandler) getPubKeyFromEnv(pod *corev1.Pod) (string, error
 
 			if pod.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef != nil {
 				log.Debugf("Found public key in secret of %s/%s", pod.Namespace, pod.Name)
-				return csh.getSecret(pod.Namespace, pod.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name)
+				return csh.getSecretValue(pod.Namespace,
+					pod.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name,
+					pod.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Key,
+				)
 			}
 		}
 	}
 	return "", fmt.Errorf("no env var found in %s/%s", pod.Namespace, pod.Name)
 }
 
-// get pubKey Secrets value by given name with kubernetes in-cluster client
-func (csh *CosignServerHandler) getSecret(namespace string, name string) (string, error) {
+// getSecretValue returns the value of passed key for the secret with passed name in passed namespace
+func (csh *CosignServerHandler) getSecretValue(namespace string, name string, key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	secret, err := csh.cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -125,10 +128,10 @@ func (csh *CosignServerHandler) getSecret(namespace string, name string) (string
 		log.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
 		return "", err
 	}
-	value := secret.Data[cosignEnvVar]
+	value := secret.Data[key]
 	if len(value) == 0 {
-		log.Errorf("Secret value (%s) is empty for %s/%s", value, namespace, name)
-		return "", fmt.Errorf("secret value empty for %s/%s", namespace, name)
+		log.Errorf("Secret value of %q is empty for %s/%s", key, namespace, name)
+		return "", nil
 	}
 	log.Debugf("Found public key in secret %s/%s, value: %s", namespace, name, value)
 	return string(value), nil
@@ -182,19 +185,20 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
 	}
 
-	// If no public key get here, try to load from secret
+	// If no public key get here, try to load default secret
 	if len(pubKey) == 0 {
-		pubKey, err = csh.getSecret(pod.Namespace, "cosignwebhook")
+		pubKey, err = csh.getSecretValue(pod.Namespace, "cosignwebhook", cosignEnvVar)
 		if err != nil {
 			log.Debugf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
 		}
 	}
 
-	// Still no public key, we don't care. Otherwise POD won't start, if we return with 403
+	// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
 	if len(pubKey) == 0 {
 		// log.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
 		// return OK if no key is set, so user don't want a verification
 		// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
+		log.Debugf("No public key found for %s/%s, skipping verification", pod.Namespace, pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
 		if err != nil {
 			log.Errorf("Can't encode response: %v", err)
@@ -291,9 +295,8 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		&cosign.CheckOpts{
 			RegistryClientOpts: remoteOpts,
 			SigVerifier:        cosignLoadKey,
-			// add settings for cosign 2.0
-			// IgnoreSCT:      true,
-			// SkipTlogVerify: true,
+			IgnoreSCT:          true,
+			IgnoreTlog:         true,
 		})
 
 	// this is always false,
@@ -314,7 +317,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// count successful verifies for prometheus metric
 		verifiedProcessed.Inc()
-		log.Infof("Image successful verified: %s/%s", pod.Namespace, pod.Name)
+		log.Infof("Image verified successfully: %s/%s", pod.Namespace, pod.Name)
 		resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 		// Verify Image successful, needs to allow pod start
 		if err != nil {

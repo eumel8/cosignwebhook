@@ -100,7 +100,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			},
 			secretPresent: true,
 			want:          "",
-			wantErr:       true,
+			wantErr:       false,
 		},
 		{
 			name: "public key from referenced non-existing secret",
