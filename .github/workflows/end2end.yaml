@@ -72,9 +72,6 @@ jobs:
       run: |
         kubectl create namespace demoapp
         kubectl -n demoapp apply -f manifests/demoapp.yaml
-    - name: Check Pods
-      run: |
-        kubectl -n demoapp get pods
     - name: Check Demoapp Deployment
       run: |
         kubectl -n demoapp rollout status deployment/demoapp --timeout=60s
@@ -82,11 +79,13 @@ jobs:
         if [[ $STATUS  -ne  1 ]]
         then
           echo "Deployment demoapp not ready"
-          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
           kubectl -n demoapp get events
+          echo "Get cosignwebhook logs"
+          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
           exit 1
         else
           echo "Deployment demoapp OK"
-          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
           kubectl -n demoapp get events
+          echo "Get cosignwebhook logs"
+          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
         fi
