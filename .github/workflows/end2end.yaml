@@ -1,0 +1,57 @@
+name: End2End Testing
+on: [push]
+
+jobs:
+  end2end:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+    - name: Set up K3S
+      uses: debianmaster/actions-k3s@master
+      id: k3s
+      with:
+        version: 'v1.24.8-k3s1'
+    - name: Check Cluster
+      run: |
+        kubectl get nodes
+    - name: Setup Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm version
+    - name: Install Cosignwebhook
+      run: |
+        helm -n cosignwebhook upgrade -i cosignwebhook \
+          --atomic \
+          --create-namespace \
+          --timeout 300s \
+          --set logLevel.info=debug chart
+    - name: Check Pods
+      run: |
+        kubectl -n cosignwebhook get pods
+    - name: Check Cosignwebhook Deployment
+      run: |
+        kubectl -n cosignwebhook wait --for=condition=available deployment/cosignwebhook
+        STATUS=$(kubectl -n cosignwebhook get deployment cosignwebhook -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment cosignwebhook not ready"
+          kubectl -n cosignwebhook get events
+          exit 1
+        else
+          echo "Deployment cosignwebhook OK"
+        fi
+    - name: Deploy Demoapp
+      run: |
+        kubectl create namespace demoapp
+        kubectl -n demoapp apply -f manifests/demoapp.yaml
+        kubectl -n demoapp wait --for=condition=available deployment/demoapp
+        STATUS=$(kubectl -n demoapp get deployment demoapp -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment demoapp not ready"
+          kubectl -n demoapp get events
+          exit 1
+        else
+          echo "Deployment demoapp OK"
+        fi
