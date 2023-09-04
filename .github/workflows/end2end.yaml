@@ -17,11 +17,11 @@ jobs:
         kubectl get nodes
     - name: Check Coredns Deployment
       run: |
-        kubectl -n kube-system wait --for=condition=available deployment/coredns
+        kubectl -n kube-system wait --for=condition=available deployment/coredns --timeout=60s
         STATUS=$(kubectl -n kube-system get deployment coredns -o jsonpath={.status.readyReplicas})
         if [[ $STATUS  -ne  1 ]]
         then
-          echo "Deployment coredns ready"
+          echo "Deployment coredns not ready"
           kubectl -n kube-system get events
           exit 1
         else
@@ -46,7 +46,7 @@ jobs:
         kubectl -n cosignwebhook get pods
     - name: Check Cosignwebhook Deployment
       run: |
-        kubectl -n cosignwebhook wait --for=condition=available deployment/cosignwebhook
+        kubectl -n cosignwebhook wait --for=condition=available deployment/cosignwebhook --timeout=60s
         STATUS=$(kubectl -n cosignwebhook get deployment cosignwebhook -o jsonpath={.status.readyReplicas})
         if [[ $STATUS  -ne  1 ]]
         then
@@ -65,7 +65,7 @@ jobs:
         kubectl -n demoapp get pods
     - name: Check Demoapp Deployment
       run: |
-        kubectl -n demoapp wait --for=condition=available deployment/demoapp
+        kubectl -n demoapp wait --for=condition=available deployment/demoapp --timeout=60s
         STATUS=$(kubectl -n demoapp get deployment demoapp -o jsonpath={.status.readyReplicas})
         if [[ $STATUS  -ne  1 ]]
         then
