@@ -15,9 +15,20 @@ jobs:
     - name: Check Cluster Nodes
       run: |
         kubectl get nodes
+    - name: Check Coredns Deployment
+      run: |
+        kubectl -n kube-system wait --for=condition=available deployment/coredns
+        STATUS=$(kubectl -n coredns get deployment coredns -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment coredns ready"
+          kubectl -n kube-system get events
+          exit 1
+        else
+          echo "Deployment coredns OK"
+        fi
     - name: Check Cluster Pods
       run: |
-        sleep 10
         kubectl get pods -A
     - name: Setup Helm
       run: |
