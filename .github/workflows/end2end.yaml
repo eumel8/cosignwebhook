@@ -11,10 +11,11 @@ jobs:
       uses: debianmaster/actions-k3s@master
       id: k3s
       with:
-        version: 'v1.24.8-k3s1'
+        version: 'v1.24.16-k3s1'
     - name: Check Cluster
       run: |
         kubectl get nodes
+        kubectl get pods -A
     - name: Setup Helm
       run: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -25,7 +26,7 @@ jobs:
           --atomic \
           --create-namespace \
           --timeout 300s \
-          --set logLevel.info=debug chart
+          --set logLevel=debug chart
     - name: Check Pods
       run: |
         kubectl -n cosignwebhook get pods
@@ -55,8 +56,11 @@ jobs:
         if [[ $STATUS  -ne  1 ]]
         then
           echo "Deployment demoapp not ready"
+          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
           kubectl -n demoapp get events
           exit 1
         else
           echo "Deployment demoapp OK"
+          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
+          kubectl -n demoapp get events
         fi
