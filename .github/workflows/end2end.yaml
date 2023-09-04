@@ -8,7 +8,8 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v3
     - name: Set up K3S
-      uses: debianmaster/actions-k3s@master
+      #uses: debianmaster/actions-k3s@master
+      uses: rohan397/actions-k3s@fix/update-set-output
       id: k3s
       with:
         version: 'v1.24.16-k3s1'
