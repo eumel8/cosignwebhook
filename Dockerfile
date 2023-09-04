@@ -8,7 +8,7 @@ RUN go mod vendor
 RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignwebhook
 
 FROM alpine:latest
-COPY --from=build-env /app .
+COPY --from=build-env /app/cosignwebhook /cosignwebhook
 COPY --from=build-env /etc/passwd /etc/passwd
 USER webhook
 ENTRYPOINT ["/cosignwebhook"]
