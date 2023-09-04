@@ -45,19 +45,19 @@ func main() {
 	// set log level
 	switch *logLevel {
 	case "fatal":
-		log.SetLogLevel(log.Level(log.FatalLevel))
+		log.SetLogLevel(log.FatalLevel)
 	case "trace":
-		log.SetLogLevel(log.Level(log.TraceLevel))
+		log.SetLogLevel(log.TraceLevel)
 	case "debug":
-		log.SetLogLevel(log.Level(log.DebugLevel))
+		log.SetLogLevel(log.DebugLevel)
 	case "error":
-		log.SetLogLevel(log.Level(log.ErrorLevel))
+		log.SetLogLevel(log.ErrorLevel)
 	case "warn":
-		log.SetLogLevel(log.Level(log.WarnLevel))
+		log.SetLogLevel(log.WarnLevel)
 	case "info":
-		log.SetLogLevel(log.Level(log.InfoLevel))
+		log.SetLogLevel(log.InfoLevel)
 	default:
-		log.SetLogLevel(log.Level(log.InfoLevel))
+		log.SetLogLevel(log.InfoLevel)
 	}
 
 	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
@@ -78,7 +78,7 @@ func main() {
 	}
 
 	// define http server and server handler
-	cs := CosignServerHandler{}
+	cs := NewCosignServerHandler()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate", cs.serve)
 	server.Handler = mux
@@ -102,7 +102,7 @@ func main() {
 
 	log.Infof("Server running listening in port: %s,%s", port, mport)
 
-	// listening shutdown singal
+	// listening shutdown signal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
