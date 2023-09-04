@@ -11,13 +11,13 @@ jobs:
       uses: debianmaster/actions-k3s@master
       id: k3s
       with:
-        version: 'latest'
-      #  version: 'v1.24.16-k3s1'
+        version: 'v1.24.16-k3s1'
     - name: Check Cluster Nodes
       run: |
         kubectl get nodes
     - name: Check Cluster Pods
       run: |
+        sleep 10
         kubectl get pods -A
     - name: Setup Helm
       run: |
