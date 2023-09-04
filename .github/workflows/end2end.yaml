@@ -12,9 +12,11 @@ jobs:
       id: k3s
       with:
         version: 'v1.24.16-k3s1'
-    - name: Check Cluster
+    - name: Check Cluster Nodes
       run: |
         kubectl get nodes
+    - name: Check Cluster Pods
+      run: |
         kubectl get pods -A
     - name: Setup Helm
       run: |
