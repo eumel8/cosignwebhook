@@ -45,6 +45,11 @@ jobs:
       run: |
         kubectl create namespace demoapp
         kubectl -n demoapp apply -f manifests/demoapp.yaml
+    - name: Check Pods
+      run: |
+        kubectl -n demoapp get pods
+    - name: Check Demoapp Deployment
+      run: |
         kubectl -n demoapp wait --for=condition=available deployment/demoapp
         STATUS=$(kubectl -n demoapp get deployment demoapp -o jsonpath={.status.readyReplicas})
         if [[ $STATUS  -ne  1 ]]
