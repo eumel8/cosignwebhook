@@ -18,7 +18,7 @@ jobs:
     - name: Check Coredns Deployment
       run: |
         kubectl -n kube-system wait --for=condition=available deployment/coredns
-        STATUS=$(kubectl -n coredns get deployment coredns -o jsonpath={.status.readyReplicas})
+        STATUS=$(kubectl -n kube-system get deployment coredns -o jsonpath={.status.readyReplicas})
         if [[ $STATUS  -ne  1 ]]
         then
           echo "Deployment coredns ready"
