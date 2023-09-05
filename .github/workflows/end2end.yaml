@@ -1,0 +1,91 @@
+name: End2End Testing
+on: [push]
+
+jobs:
+  end2end:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+    - name: Set up K3S
+      uses: debianmaster/actions-k3s@master
+      id: k3s
+      with:
+        version: 'v1.24.16-k3s1'
+    - name: Check Cluster Nodes
+      run: |
+        kubectl get nodes
+    - name: Check Coredns Deployment
+      run: |
+        kubectl -n kube-system rollout status deployment/coredns --timeout=60s
+        STATUS=$(kubectl -n kube-system get deployment coredns -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment coredns not ready"
+          kubectl -n kube-system get events
+          exit 1
+        else
+          echo "Deployment coredns OK"
+        fi
+    - name: Check Metricsserver Deployment
+      run: |
+        kubectl -n kube-system rollout status deployment/metrics-server --timeout=60s
+        STATUS=$(kubectl -n kube-system get deployment metrics-server -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment metrics-server not ready"
+          kubectl -n kube-system get events
+          exit 1
+        else
+          echo "Deployment metrics-server OK"
+        fi
+    - name: Check Cluster Pods
+      run: |
+        kubectl get pods -A
+    - name: Setup Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm version
+    - name: Install Cosignwebhook
+      run: |
+        helm -n cosignwebhook upgrade -i cosignwebhook \
+          --atomic \
+          --create-namespace \
+          --timeout 300s \
+          --set logLevel=debug chart
+    - name: Check Pods
+      run: |
+        kubectl -n cosignwebhook get pods
+    - name: Check Cosignwebhook Deployment
+      run: |
+        kubectl -n cosignwebhook rollout status deployment/cosignwebhook --timeout=60s
+        STATUS=$(kubectl -n cosignwebhook get deployment cosignwebhook -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment cosignwebhook not ready"
+          kubectl -n cosignwebhook get events
+          exit 1
+        else
+          echo "Deployment cosignwebhook OK"
+        fi
+    - name: Deploy Demoapp
+      run: |
+        kubectl create namespace demoapp
+        kubectl -n demoapp apply -f manifests/demoapp.yaml
+    - name: Check Demoapp Deployment
+      run: |
+        kubectl -n demoapp rollout status deployment/demoapp --timeout=60s
+        STATUS=$(kubectl -n demoapp get deployment demoapp -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment demoapp not ready"
+          kubectl -n demoapp get events
+          echo "Get cosignwebhook logs"
+          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
+          exit 1
+        else
+          echo "Deployment demoapp OK"
+          kubectl -n demoapp get events
+          echo "Get cosignwebhook logs"
+          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
+        fi
