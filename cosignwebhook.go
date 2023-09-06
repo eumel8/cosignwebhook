@@ -184,14 +184,14 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		// Get public key from environment var
 		pubKey, err := csh.getPubKeyFromEnv(pod, i)
 		if err != nil {
-			log.Debugf("Could not get public key from environment variable in %s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, err)
+			log.Debugf("Could not get public key from environment variable in %s/%s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 		}
 
 		// If no public key get here, try to load default secret
 		if len(pubKey) == 0 {
 			pubKey, err = csh.getSecretValue(pod.Namespace, "cosignwebhook", cosignEnvVar)
 			if err != nil {
-				log.Debugf("Could not get public key from secret in %s/%s: %v", pod.Namespace, pod.Name, err)
+				log.Debugf("Could not get public key from secret in %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			}
 		}
 
@@ -200,7 +200,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			// log.Errorf("No public key set in %s/%s", pod.Namespace, pod.Name)
 			// return OK if no key is set, so user don't want a verification
 			// otherwise set failurePolicy: Skip in ValidatingWebhookConfiguration
-			log.Debugf("No public key found for %s/%s, skipping verification", pod.Namespace, pod.Name)
+			log.Debugf("No public key found for %s/%s/%s, skipping verification", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name)
 			resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image skipped", arRequest))
 			if err != nil {
 				log.Errorf("Can't encode response: %v", err)
@@ -220,7 +220,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Error ParseRef image: %v", err)
 			resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign ParseRef image failed", arRequest))
 			if err != nil {
-				log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+				log.Errorf("Can't encode response %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 				http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 			}
 			if _, err := w.Write(resp); err != nil {
@@ -244,10 +244,10 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		// Encrypt public key
 		publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 		if err != nil {
-			log.Errorf("Error UnmarshalPEMToPublicKey %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Error UnmarshalPEMToPublicKey %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 			if err != nil {
-				log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+				log.Errorf("Can't encode response %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 				http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 			}
 			if _, err := w.Write(resp); err != nil {
@@ -260,14 +260,14 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		// Load public key to verify
 		cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 		if err != nil {
-			log.Errorf("Error LoadECDSAVerifier %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Error LoadECDSAVerifier %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign key encoding failed", arRequest))
 			if err != nil {
-				log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+				log.Errorf("Can't encode response %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 				http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 			}
 			if _, err := w.Write(resp); err != nil {
-				log.Errorf("Can't write response %s/%s: %v", pod.Namespace, pod.Name, err)
+				log.Errorf("Can't write response %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 				http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 			}
 			return
@@ -276,10 +276,10 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		// Kubernetes client to operate in cluster
 		kc, err := k8schain.NewInCluster(context.Background(), opt)
 		if err != nil {
-			log.Errorf("Error k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Error k8schain %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign UnmarshalPEMToPublicKey failed", arRequest))
 			if err != nil {
-				log.Errorf("Can't encode response %s/%s: %v", pod.Namespace, pod.Name, err)
+				log.Errorf("Can't encode response %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 				http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 			}
 			if _, err := w.Write(resp); err != nil {
@@ -306,7 +306,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 		// Verify Image failed, needs to reject pod start
 		if err != nil {
-			log.Errorf("Error VerifyImageSignatures %s/%s: %v", pod.Namespace, pod.Name, err)
+			log.Errorf("Error VerifyImageSignatures %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			resp, err := json.Marshal(admissionResponse(403, false, "Failure", "Cosign image verification failed", arRequest))
 			if err != nil {
 				log.Errorf("Can't encode response: %v", err)
@@ -319,7 +319,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// count successful verifies for prometheus metric
 			verifiedProcessed.Inc()
-			log.Infof("Image verified successfully: %s/%s", pod.Namespace, pod.Name)
+			log.Infof("Image verified successfully: %s/%s/%s", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name)
 			resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
 			// Verify Image successful, needs to allow pod start
 			if err != nil {
