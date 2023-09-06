@@ -180,7 +180,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i, _ := range pod.Spec.Containers {
-		log.Info("ROUND: %d", i)
+		log.Info("ROUND: ", i)
 		// Get public key from environment var
 		pubKey, err := csh.getPubKeyFromEnv(pod, i)
 		if err != nil {
@@ -316,6 +316,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 				log.Errorf("Can't write response: %v", err)
 				http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 			}
+			return
 		} else {
 			// count successful verifies for prometheus metric
 			verifiedProcessed.Inc()
