@@ -320,16 +320,6 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 			// count successful verifies for prometheus metric
 			verifiedProcessed.Inc()
 			log.Infof("Image verified successfully: %s/%s/%s", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name)
-			resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
-			// Verify Image successful, needs to allow pod start
-			if err != nil {
-				log.Errorf("Can't encode response: %v", err)
-				http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
-			}
-			if _, err := w.Write(resp); err != nil {
-				log.Errorf("Can't write response: %v", err)
-				http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
-			}
 
 			// Just another K8S client to record events
 			clientset, err := restClient()
@@ -339,6 +329,16 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 				recordEvent(pod, clientset)
 			}
 		}
+	}
+	resp, err := json.Marshal(admissionResponse(200, true, "Success", "Cosign image verified", arRequest))
+	// Verify Image successful, needs to allow pod start
+	if err != nil {
+		log.Errorf("Can't encode response: %v", err)
+		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+	}
+	if _, err := w.Write(resp); err != nil {
+		log.Errorf("Can't write response: %v", err)
+		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }
 
