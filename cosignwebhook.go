@@ -180,7 +180,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for i, _ := range pod.Spec.Containers {
-
+		log.Info("ROUND: %d", i)
 		// Get public key from environment var
 		pubKey, err := csh.getPubKeyFromEnv(pod, i)
 		if err != nil {
