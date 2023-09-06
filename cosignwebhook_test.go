@@ -1,10 +1,11 @@
 package main
 
 import (
+	"testing"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 func Test_getPubKeyFromEnv(t *testing.T) {
@@ -156,7 +157,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 				cs: c,
 			}
 
-			got, err := chs.getPubKeyFromEnv(tt.pod)
+			got, err := chs.getPubKeyFromEnv(tt.pod, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getPubKeyFromEnv() error = %v, wantErr %v", err, tt.wantErr)
 				return
