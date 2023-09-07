@@ -288,6 +288,7 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	accept(w, "Image signature(s) verified", arRequest.Request.UID)
 }
 
+// deny stops the pod from starting
 func deny(w http.ResponseWriter, msg string, uid types.UID) {
 	resp, err := json.Marshal(admissionReview(403, false, "Failure", msg, uid))
 	if err != nil {
