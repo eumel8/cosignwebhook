@@ -5,7 +5,9 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/google/go-containerregistry/pkg/authn"
 	"io"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
@@ -43,6 +45,7 @@ const (
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 type CosignServerHandler struct {
 	cs kubernetes.Interface
+	kc authn.Keychain
 }
 
 func NewCosignServerHandler() *CosignServerHandler {
@@ -70,9 +73,10 @@ func restClient() (*kubernetes.Clientset, error) {
 	return k8sclientset, err
 }
 
-func recordEvent(pod *corev1.Pod, k8sclientset *kubernetes.Clientset) {
+// recordEvent creates an image verified event for the pod
+func (csh *CosignServerHandler) recordEvent(pod *corev1.Pod) {
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: k8sclientset.CoreV1().Events("")})
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: csh.cs.CoreV1().Events("")})
 	eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook"})
 	eventRecorder.Eventf(pod, corev1.EventTypeNormal, "Cosignwebhook", "Cosign image verified")
 	eventBroadcaster.Shutdown()
@@ -181,111 +185,105 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	noPubKeyCount := 0
-	for i, _ := range pod.Spec.Containers {
-		log.Debugf("Inspecting container #%d: %s: ", i, pod.Spec.Containers[i].Name)
-		// Get public key from environment var
-		pubKey, err := csh.getPubKeyFromEnv(pod, i)
-		if err != nil {
-			log.Debugf("Could not get public key from environment variable in %s/%s/%s: %v. Trying to get public key from secret", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
-		}
-
-		// If no public key get here, try to load default secret
-		if len(pubKey) == 0 {
-			pubKey, err = csh.getSecretValue(pod.Namespace, "cosignwebhook", cosignEnvVar)
-			if err != nil {
-				log.Debugf("Could not get public key from secret in %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
-			}
-		}
-
-		// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
-		if len(pubKey) == 0 {
-			noPubKeyCount++
-			continue
-		}
-
-		// Lookup image name of current container
-		image := pod.Spec.Containers[i].Image
-		refImage, err := name.ParseReference(image)
-		if err != nil {
-			log.Errorf("Error ParseRef image: %v", err)
-			deny(w, "Cosign ParseRef image failed", arRequest.Request.UID)
-			return
-		}
-
-		// Lookup imagePullSecrets for reviewed POD
-		imagePullSecrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
-		for _, s := range pod.Spec.ImagePullSecrets {
-			imagePullSecrets = append(imagePullSecrets, s.Name)
-		}
-		opt := k8schain.Options{
-			Namespace:          pod.Namespace,
-			ServiceAccountName: pod.Spec.ServiceAccountName,
-			ImagePullSecrets:   imagePullSecrets,
-		}
-
-		// Encrypt public key
-		publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
-		if err != nil {
-			log.Errorf("Error UnmarshalPEMToPublicKey %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
-			deny(w, "Public key malformed", arRequest.Request.UID)
-			return
-		}
-
-		// Load public key to verify
-		cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
-		if err != nil {
-			log.Errorf("Error LoadECDSAVerifier %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
-			deny(w, "Failed creating key verifier", arRequest.Request.UID)
-			return
-		}
-
-		// Kubernetes client to operate in cluster
-		kc, err := k8schain.NewInCluster(context.Background(), opt)
-		if err != nil {
-			log.Errorf("Error k8schain %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
-			deny(w, "Failed initializing in-cluster client", arRequest.Request.UID)
-			return
-		}
-
-		// Verify signature on remote image with the presented public key
-		remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc))}
-		_, _, err = cosign.VerifyImageSignatures(
-			context.Background(),
-			refImage,
-			&cosign.CheckOpts{
-				RegistryClientOpts: remoteOpts,
-				SigVerifier:        cosignLoadKey,
-				IgnoreSCT:          true,
-				IgnoreTlog:         true,
-			})
-
-		// Verify Image failed, needs to reject pod start
-		if err != nil {
-			log.Errorf("Error VerifyImageSignatures %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
-			deny(w, "Signature verification failed", arRequest.Request.UID)
-			return
-		}
-
-		// count successful verifies for prometheus metric
-		verifiedProcessed.Inc()
-		log.Infof("Image verified successfully: %s/%s/%s", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name)
-		// Just another K8S client to record events
-		clientset, err := restClient()
-		if err != nil {
-			log.Errorf("Can't init rest client for event recorder: %v", err)
-		} else {
-			recordEvent(pod, clientset)
-		}
+	imagePullSecrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
+	for _, s := range pod.Spec.ImagePullSecrets {
+		imagePullSecrets = append(imagePullSecrets, s.Name)
+	}
+	opt := k8schain.Options{
+		Namespace:          pod.Namespace,
+		ServiceAccountName: pod.Spec.ServiceAccountName,
+		ImagePullSecrets:   imagePullSecrets,
 	}
 
-	if noPubKeyCount == len(pod.Spec.Containers) {
-		log.Debugf("No public key found for %s/%s, skipping verification", pod.Namespace, pod.Name)
-		accept(w, "No image signature verification possible", arRequest.Request.UID)
+	ctx := r.Context()
+	kc, err := k8schain.New(ctx, csh.cs, opt)
+	if err != nil {
+		log.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
+		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
 		return
+	}
+	csh.kc = kc
+
+	for i, _ := range pod.Spec.Containers {
+		err = csh.verifyPodContainer(pod, i)
+		if err != nil {
+			log.Errorf("Error verifyPodContainer %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
+			deny(w, err.Error(), arRequest.Request.UID)
+			return
+		}
 	}
 
 	accept(w, "Image signature(s) verified", arRequest.Request.UID)
+}
+
+// verifyPodContainer verifies the signature of the nth container of the pod
+func (csh *CosignServerHandler) verifyPodContainer(p *corev1.Pod, n int) error {
+
+	log.Debugf("Inspecting container %s/%s/%s", p.Namespace, p.Name, p.Spec.Containers[n].Name)
+	// Get public key from environment var
+	pubKey, err := csh.getPubKeyFromEnv(p, n)
+	if err != nil {
+		log.Debugf("Could not get public key from environment variable in %s/%s/%s: %v. Trying to get public key from secret", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+	}
+
+	// If no public key get here, try to load default secret
+	if len(pubKey) == 0 {
+		pubKey, err = csh.getSecretValue(p.Namespace, "cosignwebhook", cosignEnvVar)
+		if err != nil {
+			log.Debugf("Could not get public key from secret in %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+		}
+	}
+
+	// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
+	if len(pubKey) == 0 {
+		return nil
+	}
+
+	// Lookup image name of current container
+	image := p.Spec.Containers[n].Image
+	refImage, err := name.ParseReference(image)
+	if err != nil {
+		log.Errorf("Error ParseRef image: %v", err)
+		return errors.New("cosign ParseRef image failed")
+	}
+
+	// Encrypt public key
+	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
+	if err != nil {
+		log.Errorf("Error UnmarshalPEMToPublicKey %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+		return errors.New("public key malformed")
+	}
+
+	// Load public key to verify
+	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
+	if err != nil {
+		log.Errorf("Error LoadECDSAVerifier %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+		return errors.New("failed creating key verifier")
+	}
+
+	// Verify signature on remote image with the presented public key
+	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc))}
+	_, _, err = cosign.VerifyImageSignatures(
+		context.Background(),
+		refImage,
+		&cosign.CheckOpts{
+			RegistryClientOpts: remoteOpts,
+			SigVerifier:        cosignLoadKey,
+			IgnoreSCT:          true,
+			IgnoreTlog:         true,
+		})
+
+	// Verify Image failed, needs to reject pod start
+	if err != nil {
+		log.Errorf("Error VerifyImageSignatures %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+		return errors.New("signature verification failed")
+	}
+
+	// count successful verifies for prometheus metric
+	verifiedProcessed.Inc()
+	log.Infof("Image verified successfully: %s/%s/%s", p.Namespace, p.Name, p.Spec.Containers[n].Name)
+	csh.recordEvent(p)
+	return nil
 }
 
 // deny stops the pod from starting
