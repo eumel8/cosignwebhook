@@ -73,16 +73,16 @@ func restClient() (*kubernetes.Clientset, error) {
 	return k8sclientset, err
 }
 
-// recordEvent creates an image verified event for the pod
-func (csh *CosignServerHandler) recordEvent(pod *corev1.Pod) {
+// recordEvent creates an image verified event for the container
+func (csh *CosignServerHandler) recordEvent(p *corev1.Pod) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: csh.cs.CoreV1().Events("")})
 	eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook"})
-	eventRecorder.Eventf(pod, corev1.EventTypeNormal, "Cosignwebhook", "Cosign image verified")
+	eventRecorder.Eventf(p, corev1.EventTypeNormal, "Cosignwebhook", "Cosign image verified")
 	eventBroadcaster.Shutdown()
 }
 
-// get pod object from admission request
+// get container object from admission request
 func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(byte, &arRequest); err != nil {
@@ -96,33 +96,32 @@ func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	raw := arRequest.Request.Object.Raw
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
-		log.Error("Error deserializing pod")
+		log.Error("Error deserializing container")
 		return nil, nil, err
 	}
 	return &pod, &arRequest, nil
 }
 
-// getPubKeyFromEnv procures the public key from the pod's nth container, if present.
+// getPubKeyFromEnv procures the public key from the container's nth container, if present.
 // Else it returns an empty string and an error.
-func (csh *CosignServerHandler) getPubKeyFromEnv(pod *corev1.Pod, n int) (string, error) {
-	for i := 0; i < len(pod.Spec.Containers[n].Env); i++ {
-		if pod.Spec.Containers[n].Env[i].Name == cosignEnvVar {
-
-			if len(pod.Spec.Containers[n].Env[i].Value) != 0 {
-				log.Debugf("Found public key in env var %s/%s", pod.Namespace, pod.Name)
-				return pod.Spec.Containers[n].Env[i].Value, nil
+func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string) (string, error) {
+	for _, envVar := range c.Env {
+		if envVar.Name == cosignEnvVar {
+			if len(envVar.Value) != 0 {
+				log.Debugf("Found public key in env var for container %q", c.Name)
+				return envVar.Value, nil
 			}
 
-			if pod.Spec.Containers[n].Env[i].ValueFrom.SecretKeyRef != nil {
-				log.Debugf("Found public key in secret of %s/%s/%s", pod.Namespace, pod.Name, pod.Spec.Containers[n].Name)
-				return csh.getSecretValue(pod.Namespace,
-					pod.Spec.Containers[n].Env[i].ValueFrom.SecretKeyRef.Name,
-					pod.Spec.Containers[n].Env[i].ValueFrom.SecretKeyRef.Key,
+			if envVar.ValueFrom.SecretKeyRef != nil {
+				log.Debugf("Found reference to public key in secret %q for container %q", envVar.ValueFrom.SecretKeyRef.Name, c.Name)
+				return csh.getSecretValue(ns,
+					envVar.ValueFrom.SecretKeyRef.Name,
+					envVar.ValueFrom.SecretKeyRef.Key,
 				)
 			}
 		}
 	}
-	return "", fmt.Errorf("no env var found in %s/%s/%s", pod.Namespace, pod.Name, pod.Spec.Containers[n].Name)
+	return "", fmt.Errorf("no env var found in container %q in namespace %q", c.Name, ns)
 }
 
 // getSecretValue returns the value of passed key for the secret with passed name in passed namespace
@@ -204,65 +203,69 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	csh.kc = kc
 
-	for i, _ := range pod.Spec.Containers {
-		err = csh.verifyPodContainer(pod, i)
+	for i, c := range pod.Spec.Containers {
+		err = csh.verifyContainer(&c, pod.Namespace)
 		if err != nil {
-			log.Errorf("Error verifyPodContainer %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
+			log.Errorf("Error verifyContainer %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
 			return
 		}
 	}
 
 	accept(w, "Image signature(s) verified", arRequest.Request.UID)
+	csh.recordEvent(pod)
 }
 
-// verifyPodContainer verifies the signature of the nth container of the pod
-func (csh *CosignServerHandler) verifyPodContainer(p *corev1.Pod, n int) error {
+// verifyContainer verifies the signature of the container image
+func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, ns string) error {
 
-	log.Debugf("Inspecting container %s/%s/%s", p.Namespace, p.Name, p.Spec.Containers[n].Name)
+	log.Debugf("Inspecting container %q in namespace %q", ns, c.Name)
 	// Get public key from environment var
-	pubKey, err := csh.getPubKeyFromEnv(p, n)
+	pubKey, err := csh.getPubKeyFromEnv(c, ns)
 	if err != nil {
-		log.Debugf("Could not get public key from environment variable in %s/%s/%s: %v. Trying to get public key from secret", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+		log.Debugf("Could not find pub key in container's %q environment: %v", c.Name, err)
 	}
 
 	// If no public key get here, try to load default secret
 	if len(pubKey) == 0 {
-		pubKey, err = csh.getSecretValue(p.Namespace, "cosignwebhook", cosignEnvVar)
+		pubKey, err = csh.getSecretValue(ns, "cosignwebhook", cosignEnvVar)
 		if err != nil {
-			log.Debugf("Could not get public key from secret in %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+			log.Debugf("Could not find pub key from default secret: %v", err)
 		}
 	}
 
 	// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
+	// In future versions this should block the start of the container
 	if len(pubKey) == 0 {
+		log.Debugf("No public key found, returning")
 		return nil
 	}
 
 	// Lookup image name of current container
-	image := p.Spec.Containers[n].Image
+	image := c.Image
 	refImage, err := name.ParseReference(image)
 	if err != nil {
-		log.Errorf("Error ParseRef image: %v", err)
-		return errors.New("cosign ParseRef image failed")
+		log.Errorf("Error parsing image reference: %v", err)
+		return fmt.Errorf("could parse image reference for image %q", image)
 	}
 
 	// Encrypt public key
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		log.Errorf("Error UnmarshalPEMToPublicKey %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
-		return errors.New("public key malformed")
+		log.Errorf("Error unmarshalling public key: %v", err)
+		return fmt.Errorf("public key for image %q malformed", image)
 	}
 
 	// Load public key to verify
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
-		log.Errorf("Error LoadECDSAVerifier %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
+		log.Errorf("Error loading ECDSA verifier: %v", err)
 		return errors.New("failed creating key verifier")
 	}
 
 	// Verify signature on remote image with the presented public key
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc))}
+	log.Debugf("Verifying image %q with public key %q", image, pubKey)
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,
@@ -273,20 +276,19 @@ func (csh *CosignServerHandler) verifyPodContainer(p *corev1.Pod, n int) error {
 			IgnoreTlog:         true,
 		})
 
-	// Verify Image failed, needs to reject pod start
+	// Verify Image failed, needs to reject container start
 	if err != nil {
-		log.Errorf("Error VerifyImageSignatures %s/%s/%s: %v", p.Namespace, p.Name, p.Spec.Containers[n].Name, err)
-		return errors.New("signature verification failed")
+		log.Errorf("Error verifying signature: %v", err)
+		return fmt.Errorf("signature for %q couldn't be verified", image)
 	}
 
 	// count successful verifies for prometheus metric
 	verifiedProcessed.Inc()
-	log.Infof("Image verified successfully: %s/%s/%s", p.Namespace, p.Name, p.Spec.Containers[n].Name)
-	csh.recordEvent(p)
+	log.Infof("Image %q verified successfully", image)
 	return nil
 }
 
-// deny stops the pod from starting
+// deny stops the container from starting
 func deny(w http.ResponseWriter, msg string, uid types.UID) {
 	resp, err := json.Marshal(admissionReview(403, false, "Failure", msg, uid))
 	if err != nil {
@@ -299,7 +301,7 @@ func deny(w http.ResponseWriter, msg string, uid types.UID) {
 	}
 }
 
-// accept allows the pod to start
+// accept allows the container to start
 func accept(w http.ResponseWriter, msg string, uid types.UID) {
 	resp, err := json.Marshal(admissionReview(200, true, "Success", msg, uid))
 	if err != nil {

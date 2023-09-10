@@ -12,28 +12,18 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		pod           *corev1.Pod
+		container     *corev1.Container
 		secretPresent bool
 		want          string
 		wantErr       bool
 	}{
 		{
 			name: "public key from environment variable",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "test",
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Env: []corev1.EnvVar{
-								{
-									Name:  cosignEnvVar,
-									Value: "secret",
-								},
-							},
-						},
+			container: &corev1.Container{
+				Env: []corev1.EnvVar{
+					{
+						Name:  cosignEnvVar,
+						Value: "secret",
 					},
 				},
 			},
@@ -43,25 +33,15 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 		},
 		{
 			name: "public key from referenced secret",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "test",
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Env: []corev1.EnvVar{
-								{
-									Name: cosignEnvVar,
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											Key: cosignEnvVar,
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "cosign-pubkey",
-											},
-										},
-									},
+			container: &corev1.Container{
+				Env: []corev1.EnvVar{
+					{
+						Name: cosignEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								Key: cosignEnvVar,
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "cosign-pubkey",
 								},
 							},
 						},
@@ -74,25 +54,15 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 		},
 		{
 			name: "public key from referenced secret with wrong key",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "test",
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Env: []corev1.EnvVar{
-								{
-									Name: cosignEnvVar,
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											Key: "wrong-key",
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "cosign-pubkey",
-											},
-										},
-									},
+			container: &corev1.Container{
+				Env: []corev1.EnvVar{
+					{
+						Name: cosignEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								Key: "wrong-key",
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "cosign-pubkey",
 								},
 							},
 						},
@@ -105,25 +75,15 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 		},
 		{
 			name: "public key from referenced non-existing secret",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "test",
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Env: []corev1.EnvVar{
-								{
-									Name: cosignEnvVar,
-									ValueFrom: &corev1.EnvVarSource{
-										SecretKeyRef: &corev1.SecretKeySelector{
-											Key: cosignEnvVar,
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "non-existing-secret",
-											},
-										},
-									},
+			container: &corev1.Container{
+				Env: []corev1.EnvVar{
+					{
+						Name: cosignEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								Key: cosignEnvVar,
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "non-existing-secret",
 								},
 							},
 						},
@@ -157,7 +117,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 				cs: c,
 			}
 
-			got, err := chs.getPubKeyFromEnv(tt.pod, 0)
+			got, err := chs.getPubKeyFromEnv(tt.container, "test")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getPubKeyFromEnv() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -167,4 +127,29 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCosignServerHandler_verifyPodContainer(t *testing.T) {
+
+	//tests := []struct {
+	//	name    string
+	//	pod     *corev1.Pod
+	//	wantErr bool
+	//}{
+	//	{
+	//		name: "1 container, signed image, pub key present",
+	//	},
+	//}
+	//
+	//for _, tt := range tests {
+	//	t.Run(tt.name, func(t *testing.T) {
+	//		c := fake.NewSimpleClientset()
+	//		csh := &CosignServerHandler{
+	//			cs: c,
+	//		}
+	//		if err := csh.verifyContainer(tt.); (err != nil) != tt.wantErr {
+	//			t.Errorf("verifyContainer() error = %v, wantErr %v", err, tt.wantErr)
+	//		}
+	//	})
+	//}
 }
