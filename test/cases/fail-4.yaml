@@ -1,8 +1,8 @@
-# two containers with their public keys in environment
+# two containers, the second one has a non-existent secret reference to a public key
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: test-case-ok-2
+  name: test-case-fail-4
   namespace: test-cases
 spec:
   replicas: 1
@@ -22,16 +22,15 @@ spec:
             - name: COSIGNPUBKEY
               value: |
                 -----BEGIN PUBLIC KEY-----
-                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEilKZPJAeodknMNw4krsJhMfPom4S
-                FziLqM8UHYfhM7LSUwNL98OZh06ALzEJ3nlfTY/Lyvspdmdav4YHQnoMNg==
+                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmRU6zHit0hoOmHYNjNpnXyP2IF9D
+                PvgIuqD33cDiiHY7xS8dkmMFaCpXjkfMOcdKM4riq6XiZvTkEDpjCgHelw==
                 -----END PUBLIC KEY-----
         - name: busybox-container2
           image: k3d-registry.localhost:5000/busybox:latest
           command: ["/bin/sh", "-c", "while true; do echo 'i am the second one'; sleep 30; done"]
           env:
             - name: COSIGNPUBKEY
-              value: |
-                -----BEGIN PUBLIC KEY-----
-                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEilKZPJAeodknMNw4krsJhMfPom4S
-                FziLqM8UHYfhM7LSUwNL98OZh06ALzEJ3nlfTY/Lyvspdmdav4YHQnoMNg==
-                -----END PUBLIC KEY-----
+              valueFrom:
+                secretKeyRef:
+                  name: non-existent-secret
+                  key: non-existent-key

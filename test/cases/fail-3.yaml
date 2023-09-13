@@ -1,8 +1,8 @@
-# one container with malformed public key in environment
+# one container with a non-existent secret reference to a public key
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: test-case-fail-1
+  name: test-case-fail-3
   namespace: test-cases
 spec:
   replicas: 1
@@ -20,7 +20,7 @@ spec:
           command: ["/bin/sh", "-c", "while true; do echo 'i am the one'; sleep 3600; done"]
           env:
             - name: COSIGNPUBKEY
-              value: |
-                -----BEGIN PUBLIC KEY-----
-                badKey666
-                -----END PUBLIC KEY-----
+              valueFrom:
+                secretKeyRef:
+                  name: non-existent-secret
+                  key: cosign.pub
