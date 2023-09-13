@@ -11,6 +11,7 @@ import (
 	"io"
 	"k8s.io/apimachinery/pkg/types"
 	"net/http"
+	"os"
 	"time"
 
 	log "github.com/gookit/slog"
@@ -77,8 +78,8 @@ func restClient() (*kubernetes.Clientset, error) {
 func (csh *CosignServerHandler) recordEvent(p *corev1.Pod) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: csh.cs.CoreV1().Events("")})
-	eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook"})
-	eventRecorder.Eventf(p, corev1.EventTypeNormal, "Cosignwebhook", "Cosign image verified")
+	eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook", Host: os.Getenv("HOSTNAME")})
+	eventRecorder.Eventf(p, corev1.EventTypeNormal, "PodVerified", "Signature of pod's images(s) verified successfully")
 	eventBroadcaster.Shutdown()
 }
 
@@ -144,7 +145,11 @@ func (csh *CosignServerHandler) getSecretValue(namespace string, name string, ke
 
 func (csh *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, err := w.Write([]byte("ok"))
+	if err != nil {
+		log.Errorf("Can't write response: %v", err)
+		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+	}
 }
 
 func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
@@ -203,10 +208,19 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	csh.kc = kc
 
+	for _, c := range pod.Spec.InitContainers {
+		err = csh.verifyContainer(&c, pod.Namespace)
+		if err != nil {
+			log.Errorf("Error verifying init container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.InitContainers[0].Name, err)
+			deny(w, err.Error(), arRequest.Request.UID)
+			return
+		}
+	}
+
 	for i, c := range pod.Spec.Containers {
 		err = csh.verifyContainer(&c, pod.Namespace)
 		if err != nil {
-			log.Errorf("Error verifyContainer %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
+			log.Errorf("Error verifying container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
 			return
 		}
