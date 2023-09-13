@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: busybox-container
-          image: k3d-registry.localhost:5000/busybox@sha256:023917ec6a886d0e8e15f28fb543515a5fcd8d938edb091e8147db4efed388ee
-          command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
+          image: k3d-registry.localhost:5000/busybox:latest
+          command: ["/bin/sh", "-c", "while true; do echo 'i am the one'; sleep 3600; done"]
           env:
             - name: COSIGNPUBKEY
               value: |
@@ -26,7 +26,7 @@ spec:
                 PvgIuqD33cDiiHY7xS8dkmMFaCpXjkfMOcdKM4riq6XiZvTkEDpjCgHelw==
                 -----END PUBLIC KEY-----
         - name: busybox-container2
-          image: k3d-registry.localhost:5000/busybox@sha256:023917ec6a886d0e8e15f28fb543515a5fcd8d938edb091e8147db4efed388ee
+          image: k3d-registry.localhost:5000/busybox:latest
           command: ["/bin/sh", "-c", "while true; do echo 'i am the second one'; sleep 30; done"]
           env:
             - name: COSIGNPUBKEY
