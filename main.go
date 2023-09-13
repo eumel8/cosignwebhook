@@ -91,12 +91,12 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			log.Errorf("Failed to listen and serve webhook server ", err)
+			log.Errorf("Failed to listen and serve webhook server %v", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			log.Errorf("Failed to listen and serve minitor server ", err)
+			log.Errorf("Failed to listen and serve monitor server %v", err)
 		}
 	}()
 
