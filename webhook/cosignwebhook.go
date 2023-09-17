@@ -1,4 +1,4 @@
-package main
+package webhook
 
 import (
 	"context"
@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/go-containerregistry/pkg/authn"
 	"io"
-	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"k8s.io/apimachinery/pkg/types"
 
 	log "github.com/gookit/slog"
 	v1 "k8s.io/api/admission/v1"
@@ -38,7 +41,18 @@ import (
 const (
 	admissionApi  = "admission.k8s.io/v1"
 	admissionKind = "AdmissionReview"
-	cosignEnvVar  = "COSIGNPUBKEY"
+	CosignEnvVar  = "COSIGNPUBKEY"
+)
+
+var (
+	opsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cosign_processed_ops_total",
+		Help: "The total number of processed events",
+	})
+	verifiedProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cosign_processed_verified_total",
+		Help: "The number of verfified events",
+	})
 )
 
 // CosignServerHandler listen to admission requests and serve responses
@@ -107,7 +121,7 @@ func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 // Else it returns an empty string and an error.
 func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string) (string, error) {
 	for _, envVar := range c.Env {
-		if envVar.Name == cosignEnvVar {
+		if envVar.Name == CosignEnvVar {
 			if len(envVar.Value) != 0 {
 				log.Debugf("Found public key in env var for container %q", c.Name)
 				return envVar.Value, nil
@@ -143,7 +157,7 @@ func (csh *CosignServerHandler) getSecretValue(namespace string, name string, ke
 	return string(value), nil
 }
 
-func (csh *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) {
+func (csh *CosignServerHandler) Healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("ok"))
 	if err != nil {
@@ -152,7 +166,7 @@ func (csh *CosignServerHandler) healthz(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
+func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
 		if data, err := io.ReadAll(r.Body); err == nil {
@@ -232,7 +246,6 @@ func (csh *CosignServerHandler) serve(w http.ResponseWriter, r *http.Request) {
 
 // verifyContainer verifies the signature of the container image
 func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, ns string) error {
-
 	log.Debugf("Inspecting container %q in namespace %q", ns, c.Name)
 	// Get public key from environment var
 	pubKey, err := csh.getPubKeyFromEnv(c, ns)
@@ -242,7 +255,7 @@ func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, ns string) 
 
 	// If no public key get here, try to load default secret
 	if len(pubKey) == 0 {
-		pubKey, err = csh.getSecretValue(ns, "cosignwebhook", cosignEnvVar)
+		pubKey, err = csh.getSecretValue(ns, "cosignwebhook", CosignEnvVar)
 		if err != nil {
 			log.Debugf("Could not find pub key from default secret: %v", err)
 		}

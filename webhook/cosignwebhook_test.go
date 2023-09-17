@@ -1,4 +1,4 @@
-package main
+package webhook
 
 import (
 	"testing"
@@ -9,7 +9,6 @@ import (
 )
 
 func Test_getPubKeyFromEnv(t *testing.T) {
-
 	tests := []struct {
 		name          string
 		container     *corev1.Container
@@ -22,7 +21,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			container: &corev1.Container{
 				Env: []corev1.EnvVar{
 					{
-						Name:  cosignEnvVar,
+						Name:  CosignEnvVar,
 						Value: "secret",
 					},
 				},
@@ -36,10 +35,10 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			container: &corev1.Container{
 				Env: []corev1.EnvVar{
 					{
-						Name: cosignEnvVar,
+						Name: CosignEnvVar,
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
-								Key: cosignEnvVar,
+								Key: CosignEnvVar,
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "cosign-pubkey",
 								},
@@ -57,7 +56,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			container: &corev1.Container{
 				Env: []corev1.EnvVar{
 					{
-						Name: cosignEnvVar,
+						Name: CosignEnvVar,
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
 								Key: "wrong-key",
@@ -78,10 +77,10 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			container: &corev1.Container{
 				Env: []corev1.EnvVar{
 					{
-						Name: cosignEnvVar,
+						Name: CosignEnvVar,
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
-								Key: cosignEnvVar,
+								Key: CosignEnvVar,
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "non-existing-secret",
 								},
@@ -98,7 +97,6 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			c := fake.NewSimpleClientset()
 			if tt.secretPresent {
 				secret := &corev1.Secret{
@@ -107,7 +105,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 						Namespace: "test",
 					},
 					Data: map[string][]byte{
-						cosignEnvVar: []byte(tt.want),
+						CosignEnvVar: []byte(tt.want),
 					},
 				}
 				c = fake.NewSimpleClientset(secret)
@@ -130,7 +128,6 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 }
 
 func TestCosignServerHandler_verifyPodContainer(t *testing.T) {
-
 	//tests := []struct {
 	//	name    string
 	//	pod     *corev1.Pod

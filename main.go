@@ -10,10 +10,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/eumel8/cosignwebhook/webhook"
 	log "github.com/gookit/slog"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -23,17 +22,7 @@ const (
 	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} \n"
 )
 
-var (
-	tlscert, tlskey string
-	opsProcessed    = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "cosign_processed_ops_total",
-		Help: "The total number of processed events",
-	})
-	verifiedProcessed = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "cosign_processed_verified_total",
-		Help: "The number of verfified events",
-	})
-)
+var tlscert, tlskey string
 
 func main() {
 	// parse arguments
@@ -63,7 +52,6 @@ func main() {
 	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
-
 	if err != nil {
 		log.Errorf("Failed to load key pair: ", err)
 	}
@@ -78,13 +66,13 @@ func main() {
 	}
 
 	// define http server and server handler
-	cs := NewCosignServerHandler()
+	cs := webhook.NewCosignServerHandler()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/validate", cs.serve)
+	mux.HandleFunc("/validate", cs.Serve)
 	server.Handler = mux
 
 	mmux := http.NewServeMux()
-	mmux.HandleFunc("/healthz", cs.healthz)
+	mmux.HandleFunc("/healthz", cs.Healthz)
 	mmux.Handle("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 
