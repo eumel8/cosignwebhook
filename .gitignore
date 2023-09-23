@@ -1,4 +1,7 @@
 cosignwebhook
 grumpywebhook
 chart/caas-values.yaml
-test/keys
+
+# the keypair used for test-signing of the webhook
+*.key
+*.pub

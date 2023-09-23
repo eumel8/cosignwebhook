@@ -26,6 +26,7 @@ func createKeys(t testing.TB, name string) (string, string) {
 	cmd.SetArgs(args)
 	err = cmd.Execute()
 	if err != nil {
+		cleanupKeys(t, name)
 		t.Fatalf("failed generating keypair: %v", err)
 	}
 
@@ -42,14 +43,67 @@ func createKeys(t testing.TB, name string) (string, string) {
 	return string(privateKey), string(pubKey)
 }
 
-// TestOneContainerPubKeyEnvVar tests that deployment with a single signed container,
+// cleanupKeys removes all keypair files with the passed name from the testing directory
+func cleanupKeys(t testing.TB, name string) {
+
+	t.Logf("cleaning up keypair files for %s", name)
+	// check if the keypair files exist
+	_, err := os.Stat(fmt.Sprintf("%s.key", name))
+	if err != nil {
+		t.Fatalf("failed reading private key: %v", err)
+	}
+
+	_, err = os.Stat(fmt.Sprintf("%s.pub", name))
+	if err != nil {
+		t.Fatalf("failed reading public key: %v", err)
+	}
+
+	err = os.Remove(fmt.Sprintf("%s.key", name))
+	if err != nil {
+		t.Fatalf("failed removing private key: %v", err)
+	}
+	err = os.Remove(fmt.Sprintf("%s.pub", name))
+	if err != nil {
+		t.Fatalf("failed removing public key: %v", err)
+	}
+	t.Logf("cleaned up keypair files for %s", name)
+}
+
+// signContainer signs the container with the provided private key
+// TODO: find a way to simplify this function - maybe use cosing CLI directly?
+func signContainer(t *testing.T, priv, img string) error {
+	args := []string{
+		"sign",
+		img,
+	}
+	t.Setenv("COSIGN_PASSWORD", "")
+	cmd := cli.New()
+	_ = cmd.Flags().Set("timeout", "30s")
+	cmd.SetArgs(args)
+
+	// find the sign subcommand in the commands slice
+	for _, c := range cmd.Commands() {
+		if c.Name() == "sign" {
+			cmd = c
+			break
+		}
+	}
+	_ = cmd.Flags().Set("key", fmt.Sprintf("%s.key", priv))
+	_ = cmd.Flags().Set("tlog-upload", "false")
+	_ = cmd.Flags().Set("yes", "true")
+	_ = cmd.Flags().Set("allow-http-registry", "true")
+	return cmd.Execute()
+}
+
+// TestOneContainerPubKeyEnvVar tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, succeeds.
 func TestOneContainerPubKeyEnvVar(t *testing.T) {
 	// create a keypair to sign the container
 	_, pub := createKeys(t, "test")
-	os.Setenv("COSIGN_PASSWORD", "")
-	// sign the container
-	err := signContainer(t, "test")
+	t.Setenv("COSIGN_PASSWORD", "")
+
+	// sign the container with the ephemeral keypair
+	err := signContainer(t, "test", "k3d-registry.localhost:5000/busybox:dev@sha256:023917ec6a886d0e8e15f28fb543515a5fcd8d938edb091e8147db4efed388ee")
 	if err != nil {
 		t.Fatalf("failed signing container: %v", err)
 	}
@@ -72,7 +126,12 @@ func TestOneContainerPubKeyEnvVar(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Name:  "test-case-1",
-							Image: "image_name:tag",
+							Image: "k3d-registry.localhost:5000/busybox:dev@sha256:023917ec6a886d0e8e15f28fb543515a5fcd8d938edb091e8147db4efed388ee",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+							},
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
@@ -89,25 +148,39 @@ func TestOneContainerPubKeyEnvVar(t *testing.T) {
 	// create clientset
 	k8sClient, err := createClientSet()
 	if err != nil {
+		cleanupKeys(t, "test")
 		t.Fatalf("failed creating clientset: %v", err)
 	}
 
 	// create the deployment
 	_, err = k8sClient.AppsV1().Deployments("test-cases").Create(context.Background(), &depl, metav1.CreateOptions{})
 	if err != nil {
+		cleanupKeys(t, "test")
 		t.Fatalf("failed creating deployment: %v", err)
 	}
 
 	// wait for the deployment to be ready
 	err = waitForDeploymentReady(t, k8sClient, "test-cases", "test-case-1")
 	if err != nil {
+		cleanupKeys(t, "test")
 		t.Fatalf("failed waiting for deployment to be ready: %v", err)
 	}
+
+	// delete the deployment
+	err = k8sClient.AppsV1().Deployments("test-cases").Delete(context.Background(), "test-case-1", metav1.DeleteOptions{})
+	if err != nil {
+		cleanupKeys(t, "test")
+		t.Fatalf("failed deleting deployment: %v", err)
+	}
+
+	// cleanup the keypair
+	cleanupKeys(t, "test")
 }
 
 // waitForDeploymentReady waits for the deployment to be ready
 func waitForDeploymentReady(t *testing.T, k8sClient *kubernetes.Clientset, ns, name string) error {
 
+	t.Logf("waiting for deployment %s to be ready", name)
 	// wait until the deployment is ready
 	w, err := k8sClient.AppsV1().Deployments(ns).Watch(context.Background(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("metadata.name=%s", name),
@@ -116,7 +189,6 @@ func waitForDeploymentReady(t *testing.T, k8sClient *kubernetes.Clientset, ns, n
 	if err != nil {
 		return err
 	}
-
 	for event := range w.ResultChan() {
 		deployment, ok := event.Object.(*appsv1.Deployment)
 		if !ok {
@@ -124,23 +196,12 @@ func waitForDeploymentReady(t *testing.T, k8sClient *kubernetes.Clientset, ns, n
 		}
 
 		if deployment.Status.ReadyReplicas == 1 {
+			t.Logf("deployment %s is ready", name)
 			return nil
 		}
 	}
 
 	return nil
-}
-
-func signContainer(t *testing.T, priv string) error {
-	args := []string{
-		"sign",
-		"--key", fmt.Sprintf("%s.key", priv),
-		"image_name:tag",
-	}
-	cmd := cli.Sign()
-	cmd.SetArgs(args)
-	return cmd.Execute()
-
 }
 
 func createClientSet() (k8sClient *kubernetes.Clientset, err error) {

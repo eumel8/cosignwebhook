@@ -34,6 +34,8 @@ kubectl -n cosignwebhook apply -f manifests/manifest.yaml
 
 ## Cert generation
 
+Run the generate-certs script in the `hack` folder to generate the TLS key pair and the CA certificate for the webhook:
+
 ```bash
 generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 ```
