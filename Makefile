@@ -28,14 +28,16 @@ test-busybox-images:
 
 test-image:
 	@echo "Checking for cosign.key..."
-	@test -f test/keys/cosign.key || (echo "cosign.key not found. Run 'make generate-key' to generate one." && exit 1)
+	@test -f cosign.key || (echo "cosign.key not found. Run 'make generate-key' to generate one." && exit 1)
 	@echo "Building test image..."
 	@docker build -t k3d-registry.localhost:5000/cosignwebhook:dev .
 	@echo "Pushing test image..."
 	@docker push k3d-registry.localhost:5000/cosignwebhook:dev
 	@echo "Signing test image..."
-	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/cosignwebhook:dev
+	@SHA=$(shell docker inspect --format='{{index .RepoDigests 0}}' k3d-registry.localhost:5000/cosignwebhook:dev | cut -d '@' -f 2) && \
+		echo "Using image SHA: $${SHA}" && \
+		export COSIGN_PASSWORD="" && \
+		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/cosignwebhook:dev@$${SHA}
 
 test-deploy:
 	@echo "Deploying test image..."
