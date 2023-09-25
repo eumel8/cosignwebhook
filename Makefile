@@ -10,8 +10,8 @@ test-generate-key:
 	@echo "Generating key..."
 	@export COSIGN_PASSWORD="" && \
 	 cosign generate-key-pair && \
-	 mv cosign.key test/keys/cosign.key && \
-	 mv cosign.pub test/keys/cosign.pub
+	 mv cosign.key cosign.key && \
+	 mv cosign.pub cosign.pub
 
 test-busybox-images:
 	@echo "Building busybox image..."
@@ -22,8 +22,8 @@ test-busybox-images:
 	@docker push k3d-registry.localhost:5000/busybox --all-tags
 	@echo "Signing busybox images..."
 	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key test/keys/cosign.key k3d-registry.localhost:5000/busybox:latest && \
-		cosign sign --tlog-upload=false --key test/keys/second.key k3d-registry.localhost:5000/busybox:second
+		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/busybox:latest && \
+		cosign sign --tlog-upload=false --key second.key k3d-registry.localhost:5000/busybox:second
 	@echo "Importing to cluster..."
 	@k3d image import k3d-registry.localhost:5000/busybox:latest --cluster cosign-tests
 	@k3d image import k3d-registry.localhost:5000/busybox:second --cluster cosign-tests
