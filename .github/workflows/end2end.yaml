@@ -48,7 +48,7 @@ jobs:
         helm version
     - name: Create ephemeral keys
       run: |
-        make test-generate-keys
+        make test-generate-key
     - name: Build test image
       run: |
         make test-image
