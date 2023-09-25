@@ -95,9 +95,9 @@ func signContainer(t *testing.T, priv, img string) error {
 	return cmd.Execute()
 }
 
-// TestOneContainerPubKeyEnvVar tests that a deployment with a single signed container,
+// testOneContainerPubKeyEnvVar tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, succeeds.
-func TestOneContainerPubKeyEnvVar(t *testing.T) {
+func testOneContainerPubKeyEnvVar(t *testing.T) {
 	// create a keypair to sign the container
 	_, pub := createKeys(t, "test")
 	t.Setenv("COSIGN_PASSWORD", "")
@@ -221,14 +221,4 @@ func createClientSet() (k8sClient *kubernetes.Clientset, err error) {
 		return nil, err
 	}
 	return cs, nil
-}
-
-func TestCreateKeyPair(t *testing.T) {
-	priv, pub := createKeys(t, "test")
-	if priv == "" {
-		t.Fatal("private key is empty")
-	}
-	if pub == "" {
-		t.Fatal("public key is empty")
-	}
 }

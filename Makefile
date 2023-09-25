@@ -24,6 +24,9 @@ test-busybox-images:
 	@export COSIGN_PASSWORD="" && \
 		cosign sign --tlog-upload=false --key test/keys/cosign.key k3d-registry.localhost:5000/busybox:latest && \
 		cosign sign --tlog-upload=false --key test/keys/second.key k3d-registry.localhost:5000/busybox:second
+	@echo "Importing to cluster..."
+	@k3d image import k3d-registry.localhost:5000/busybox:latest --cluster cosign-tests
+	@k3d image import k3d-registry.localhost:5000/busybox:second --cluster cosign-tests
 
 
 test-image:
@@ -38,16 +41,29 @@ test-image:
 		echo "Using image SHA: $${SHA}" && \
 		export COSIGN_PASSWORD="" && \
 		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/cosignwebhook:dev@$${SHA}
+	@echo "Importing test image to cluster..."
+	@k3d image import k3d-registry.localhost:5000/cosignwebhook:dev --cluster cosign-tests
 
 test-deploy:
 	@echo "Deploying test image..."
 	@SHA=$(shell docker inspect --format='{{index .RepoDigests 0}}' k3d-registry.localhost:5000/cosignwebhook:dev | cut -d '@' -f 2) && \
 		echo "Using image SHA: $${SHA}" && \
 		helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
+		--wait \
 		--set image.repository=k3d-registry.localhost:5000/cosignwebhook \
 		--set image.tag="dev@$${SHA}" \
 		--set-file cosign.scwebhook.key=cosign.pub \
 		--set logLevel=debug
+
+.PHONY: test-e2e
+test-e2e:
+	@echo "Running e2e tests..."
+	@go test -v -race -count 1 ./test/
+
+.PHONY: test-unit
+test-unit:
+	@echo "Running unit tests..."
+	@go test -v -race -count 1 ./webhook/
 
 test-cleanup:
 	@echo "Cleaning up..."
