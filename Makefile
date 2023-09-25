@@ -34,20 +34,17 @@ test-image:
 	@echo "Pushing test image..."
 	@docker push k3d-registry.localhost:5000/cosignwebhook:dev
 	@echo "Signing test image..."
-	@export SHA=$(shell docker inspect --format='{{index .RepoDigests 0}}' k3d-registry.localhost:5000/cosignwebhook:dev | cut -d '@' -f 2) && \
-		export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/cosignwebhook:dev@$${SHA}
+	@export COSIGN_PASSWORD="" && \
+		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/cosignwebhook:dev
 	@echo "Importing test image to cluster..."
 	@k3d image import k3d-registry.localhost:5000/cosignwebhook:dev --cluster cosign-tests
 
 test-deploy:
 	@echo "Deploying test image..."
-	@export SHA=$(shell docker inspect --format='{{index .RepoDigests 0}}' k3d-registry.localhost:5000/cosignwebhook:dev | cut -d '@' -f 2) && \
-		echo "Using image SHA: $${SHA}" && \
-		helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
+	@helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
 		--wait \
 		--set image.repository=k3d-registry.localhost:5000/cosignwebhook \
-		--set image.tag="dev@$${SHA}" \
+		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
 		--set logLevel=debug
 
