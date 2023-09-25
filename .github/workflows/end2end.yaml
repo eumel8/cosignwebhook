@@ -7,11 +7,14 @@ jobs:
     steps:
     - name: Checkout Repo
       uses: actions/checkout@v3
-    - name: Set up K3S
-      uses: debianmaster/actions-k3s@master
-      id: k3s
+    - name: Create Cluster
+      uses: AbsaOSS/k3d-action@v2
       with:
-        version: 'v1.24.16-k3s1'
+        cluster-name: cosign-tests
+        k3d-version: v5.4.6
+    - name: Create Local Registry
+      run: |
+          k3d registry create registry.localhost --port 5000
     - name: Check Cluster Nodes
       run: |
         kubectl get nodes
@@ -39,53 +42,19 @@ jobs:
         else
           echo "Deployment metrics-server OK"
         fi
-    - name: Check Cluster Pods
-      run: |
-        kubectl get pods -A
     - name: Setup Helm
       run: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
         helm version
+    - name: Create ephemeral keys
+      run: |
+        make test-keys
+    - name: Build test image
+      run: |
+        make test-image
     - name: Install Cosignwebhook
       run: |
-        helm -n cosignwebhook upgrade -i cosignwebhook \
-          --atomic \
-          --create-namespace \
-          --timeout 300s \
-          --set logLevel=debug chart
-    - name: Check Pods
+        make test-deploy
+    - name: Run End2End Tests
       run: |
-        kubectl -n cosignwebhook get pods
-    - name: Check Cosignwebhook Deployment
-      run: |
-        kubectl -n cosignwebhook rollout status deployment/cosignwebhook --timeout=60s
-        STATUS=$(kubectl -n cosignwebhook get deployment cosignwebhook -o jsonpath={.status.readyReplicas})
-        if [[ $STATUS  -ne  1 ]]
-        then
-          echo "Deployment cosignwebhook not ready"
-          kubectl -n cosignwebhook get events
-          exit 1
-        else
-          echo "Deployment cosignwebhook OK"
-        fi
-    - name: Deploy Demoapp
-      run: |
-        kubectl create namespace demoapp
-        kubectl -n demoapp apply -f manifests/demoapp.yaml
-    - name: Check Demoapp Deployment
-      run: |
-        kubectl -n demoapp rollout status deployment/demoapp --timeout=60s
-        STATUS=$(kubectl -n demoapp get deployment demoapp -o jsonpath={.status.readyReplicas})
-        if [[ $STATUS  -ne  1 ]]
-        then
-          echo "Deployment demoapp not ready"
-          kubectl -n demoapp get events
-          echo "Get cosignwebhook logs"
-          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
-          exit 1
-        else
-          echo "Deployment demoapp OK"
-          kubectl -n demoapp get events
-          echo "Get cosignwebhook logs"
-          kubectl -n cosignwebhook logs -lapp.kubernetes.io/name=cosignwebhook
-        fi
+        make test-e2e
