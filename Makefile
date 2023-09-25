@@ -9,9 +9,7 @@ test-create-cluster:
 test-generate-key:
 	@echo "Generating key..."
 	@export COSIGN_PASSWORD="" && \
-	 cosign generate-key-pair && \
-	 mv cosign.key cosign.key && \
-	 mv cosign.pub cosign.pub
+	 cosign generate-key-pair
 
 test-busybox-images:
 	@echo "Building busybox image..."
