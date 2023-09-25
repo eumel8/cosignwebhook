@@ -1,7 +1,9 @@
-name: Docker Image CI
+name: Build Image & Chart
 
 on:
   push:
+    branches:
+      - main
     
 jobs:
   build:
