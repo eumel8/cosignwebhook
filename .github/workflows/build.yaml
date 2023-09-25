@@ -12,7 +12,7 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
         with:
-          cosign-release: 'v2.0.0'
+          cosign-release: 'v2.2.0'
       - name: Login Build Sign Push
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${GHR} -u ${{ github.actor }} --password-stdin
