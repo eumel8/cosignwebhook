@@ -58,13 +58,6 @@ jobs:
     - name: Install Cosignwebhook
       run: |
         make test-deploy
-    - name: Check Deployment
+    - name: Run End2End Tests
       run: |
-        echo "Waiting for deployment to be ready"
-        sleep 60
-        echo "Deployment cosignwebhook not ready"
-        kubectl -n cosignwebhook get events
-        kubectl describe -n cosignwebhook deployment/cosignwebhook
-#    - name: Run End2End Tests
-#      run: |
-#        make test-e2e
+        make test-e2e
