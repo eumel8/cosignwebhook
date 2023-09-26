@@ -61,7 +61,6 @@ jobs:
         make test-deploy
     - name: Check Deployment
       run: |
-        kubectl -n cosignwebhook rollout status deployment/cosignwebhook --timeout=60s
         STATUS=$(kubectl -n cosignwebhook get deployment cosignwebhook -o jsonpath={.status.readyReplicas})
         if [[ $STATUS  -ne  1 ]]
         then
