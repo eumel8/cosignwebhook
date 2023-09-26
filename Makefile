@@ -45,7 +45,8 @@ test-deploy:
 		--set image.repository=k3d-registry.localhost:5000/cosignwebhook \
 		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
-		--set logLevel=debug
+		--set logLevel=debug \
+		--wait --debug
 
 .PHONY: test-e2e
 test-e2e:
