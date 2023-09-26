@@ -59,6 +59,22 @@ jobs:
     - name: Install Cosignwebhook
       run: |
         make test-deploy
+    - name: Check Deployment
+      run: |
+        kubectl -n cosign rollout status deployment/cosignwebhook --timeout=60s
+        STATUS=$(kubectl -n cosignwebhook get deployment cosignwebhook -o jsonpath={.status.readyReplicas})
+        if [[ $STATUS  -ne  1 ]]
+        then
+          echo "Deployment cosignwebhook not ready"
+          kubectl -n cosignwebhook get events
+          kubectl logs -n cosignwebhook deployment/cosignwebhook cosignwebhook
+          kubectl logs -n cosignwebhook deployment/cosignwebhook sccosign
+          kubectl logs -n cosignwebhook deployment/cosignwebhook scwebhook
+          kubectl describe -n cosignwebhook deployment/cosignwebhook
+          exit 1
+        else
+          echo "Deployment cosignwebhook OK"
+        fi
     - name: Run End2End Tests
       run: |
         make test-e2e
