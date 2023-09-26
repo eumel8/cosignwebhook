@@ -6,10 +6,12 @@ test-create-cluster:
 	@echo "Create test namespace..."
 	@kubectl create namespace test-cases
 
-test-generate-key:
-	@echo "Generating key..."
+test-generate-keys:
+	@echo "Generating cosign keys..."
 	@export COSIGN_PASSWORD="" && \
-	 cosign generate-key-pair
+	 cosign generate-key-pair && \
+	 cosign generate-key-pair --output-key-prefix second
+
 
 test-busybox-images:
 	@echo "Building busybox image..."
@@ -22,10 +24,6 @@ test-busybox-images:
 	@export COSIGN_PASSWORD="" && \
 		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/busybox:latest && \
 		cosign sign --tlog-upload=false --key second.key k3d-registry.localhost:5000/busybox:second
-	@echo "Importing to cluster..."
-	@k3d image import k3d-registry.localhost:5000/busybox:latest --cluster cosign-tests
-	@k3d image import k3d-registry.localhost:5000/busybox:second --cluster cosign-tests
-
 test-image:
 	@echo "Checking for cosign.key..."
 	@test -f cosign.key || (echo "cosign.key not found. Run 'make generate-key' to generate one." && exit 1)

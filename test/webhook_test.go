@@ -126,7 +126,7 @@ func testOneContainerPubKeyEnvVar(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Name:  "test-case-1",
-							Image: "k3d-registry.localhost:5000/busybox:dev@sha256:023917ec6a886d0e8e15f28fb543515a5fcd8d938edb091e8147db4efed388ee",
+							Image: "k3d-registry.localhost:5000/busybox:latest",
 							Command: []string{
 								"sh",
 								"-c",

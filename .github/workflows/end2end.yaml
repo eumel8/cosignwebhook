@@ -51,7 +51,7 @@ jobs:
         cosign-release: 'v2.2.0'
     - name: Create ephemeral keys
       run: |
-        make test-generate-key
+        make test-generate-keys
     - name: Build test image
       run: |
         make test-image
@@ -60,4 +60,5 @@ jobs:
         make test-deploy
     - name: Run End2End Tests
       run: |
+        make test-busybox-images
         make test-e2e
