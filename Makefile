@@ -42,7 +42,6 @@ test-image:
 test-deploy:
 	@echo "Deploying test image..."
 	@helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
-		--wait \
 		--set image.repository=k3d-registry.localhost:5000/cosignwebhook \
 		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
