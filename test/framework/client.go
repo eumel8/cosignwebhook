@@ -3,14 +3,12 @@ package framework
 import (
 	"context"
 	"fmt"
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
-	"regexp"
 	"testing"
 	"time"
 )
@@ -32,39 +30,23 @@ func New() (*Framework, error) {
 	}, nil
 }
 
-// CreateDeployment creates a deployment in the testing namespace
-func (f *Framework) CreateDeployment(t testing.TB, d appsv1.Deployment) {
-	_, err := f.k8s.AppsV1().Deployments("test-cases").Create(context.Background(), &d, metav1.CreateOptions{})
+func createClientSet() (k8sClient *kubernetes.Clientset, err error) {
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		kubeconfig = os.Getenv("HOME") + "/.kube/config"
+	}
+
+	// create restconfig from kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		f.Cleanup(t, err)
+		return nil, err
 	}
-}
 
-// WaitForDeployment waits until the deployment is ready
-func (f *Framework) WaitForDeployment(t *testing.T, ns, name string) {
-
-	t.Logf("waiting for deployment %s to be ready", name)
-	// wait until the deployment is ready
-	w, err := f.k8s.AppsV1().Deployments(ns).Watch(context.Background(), metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("metadata.name=%s", name),
-	})
-
+	cs, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		f.Cleanup(t, err)
+		return nil, err
 	}
-	for event := range w.ResultChan() {
-		deployment, ok := event.Object.(*appsv1.Deployment)
-		if !ok {
-			continue
-		}
-
-		if deployment.Status.ReadyReplicas == 1 {
-			t.Logf("deployment %s is ready", name)
-			return
-		}
-	}
-
-	t.Fatalf("deployment %s is not ready", name)
+	return cs, nil
 }
 
 // Cleanup removes all resources created by the framework
@@ -75,88 +57,6 @@ func (f *Framework) Cleanup(t testing.TB, err error) {
 	f.cleanupSecrets(t)
 	if err != nil {
 		t.Fatalf("test failed: %v", err)
-	}
-}
-
-// cleanupKeys removes all keypair files from the testing directory
-func cleanupKeys(t testing.TB) {
-
-	t.Logf("cleaning up keypair files")
-	files, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatalf("failed reading directory: %v", err)
-	}
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		reKey := regexp.MustCompile(".*.key")
-		rePub := regexp.MustCompile(".*.pub")
-		if reKey.MatchString(f.Name()) || rePub.MatchString(f.Name()) {
-			err = os.Remove(f.Name())
-			if err != nil {
-				t.Fatalf("failed removing file %s: %v", f.Name(), err)
-			}
-		}
-	}
-	t.Logf("cleaned up keypair files")
-}
-
-// CreateKeys creates a signing keypair for cosing with the provided name
-func (f *Framework) CreateKeys(t testing.TB, name string) (string, string) {
-	args := []string{fmt.Sprintf("--output-key-prefix=%s", name)}
-	err := os.Setenv("COSIGN_PASSWORD", "")
-	if err != nil {
-		t.Fatalf("failed setting COSIGN_PASSWORD: %v", err)
-	}
-	cmd := cli.GenerateKeyPair()
-	cmd.SetArgs(args)
-	err = cmd.Execute()
-	if err != nil {
-		f.Cleanup(t, err)
-	}
-
-	// read private key and public key from the current directory
-	privateKey, err := os.ReadFile(fmt.Sprintf("%s.key", name))
-	if err != nil {
-		f.Cleanup(t, err)
-	}
-	pubKey, err := os.ReadFile(fmt.Sprintf("%s.pub", name))
-	if err != nil {
-		f.Cleanup(t, err)
-	}
-
-	return string(privateKey), string(pubKey)
-}
-
-// SignContainer signs the container with the provided private key
-func (f *Framework) SignContainer(t *testing.T, priv, img string) {
-	// TODO: find a way to simplify this function - maybe use cosing CLI directly?
-	// get SHA of the container image
-	t.Setenv("COSIGN_PASSWORD", "")
-	args := []string{
-		"sign",
-		img,
-	}
-	t.Setenv("COSIGN_PASSWORD", "")
-	cmd := cli.New()
-	_ = cmd.Flags().Set("timeout", "30s")
-	cmd.SetArgs(args)
-
-	// find the sign subcommand in the commands slice
-	for _, c := range cmd.Commands() {
-		if c.Name() == "sign" {
-			cmd = c
-			break
-		}
-	}
-	_ = cmd.Flags().Set("key", fmt.Sprintf("%s.key", priv))
-	_ = cmd.Flags().Set("tlog-upload", "false")
-	_ = cmd.Flags().Set("yes", "true")
-	_ = cmd.Flags().Set("allow-http-registry", "true")
-	err := cmd.Execute()
-	if err != nil {
-		f.Cleanup(t, err)
 	}
 }
 
@@ -196,16 +96,6 @@ func (f *Framework) cleanupDeployments(t testing.TB) {
 	}
 }
 
-// CreateSecret creates a secret in the testing namespace
-func (f *Framework) CreateSecret(t *testing.T, secret corev1.Secret) {
-	t.Logf("creating secret %s", secret.Name)
-	s, err := f.k8s.CoreV1().Secrets("test-cases").Create(context.Background(), &secret, metav1.CreateOptions{})
-	if err != nil {
-		f.Cleanup(t, err)
-	}
-	t.Logf("created secret %s", s.Name)
-}
-
 // cleanupSecrets removes all secrets from the testing namespace
 func (f *Framework) cleanupSecrets(t testing.TB) {
 
@@ -223,6 +113,60 @@ func (f *Framework) cleanupSecrets(t testing.TB) {
 			f.Cleanup(t, err)
 		}
 	}
+}
+
+// CreateDeployment creates a deployment in the testing namespace
+func (f *Framework) CreateDeployment(t testing.TB, d appsv1.Deployment) {
+	_, err := f.k8s.AppsV1().Deployments("test-cases").Create(context.Background(), &d, metav1.CreateOptions{})
+	if err != nil {
+		f.Cleanup(t, err)
+	}
+}
+
+// WaitForDeployment waits until the deployment is ready
+func (f *Framework) WaitForDeployment(t *testing.T, d appsv1.Deployment) {
+
+	t.Logf("waiting for deployment %s to be ready", d.Name)
+	// wait until the deployment is ready
+	w, err := f.k8s.AppsV1().Deployments(d.Namespace).Watch(context.Background(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("metadata.name=%s", d.Name),
+	})
+
+	if err != nil {
+		f.Cleanup(t, err)
+	}
+
+	timeout := time.After(30 * time.Second)
+	for event := range w.ResultChan() {
+		select {
+		case <-timeout:
+			f.Cleanup(t, fmt.Errorf("timeout reached while waiting for deployment to be ready"))
+		default:
+			deployment, ok := event.Object.(*appsv1.Deployment)
+			if !ok {
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			if deployment.Status.ReadyReplicas == 1 {
+				t.Logf("deployment %s is ready", d.Name)
+				return
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
+
+	f.Cleanup(t, fmt.Errorf("failed to wait for deployment to be ready"))
+}
+
+// CreateSecret creates a secret in the testing namespace
+func (f *Framework) CreateSecret(t *testing.T, secret corev1.Secret) {
+	t.Logf("creating secret %s", secret.Name)
+	s, err := f.k8s.CoreV1().Secrets("test-cases").Create(context.Background(), &secret, metav1.CreateOptions{})
+	if err != nil {
+		f.Cleanup(t, err)
+	}
+	t.Logf("created secret %s", s.Name)
 }
 
 // AssertDeploymentFailed asserts that the deployment cannot start
@@ -287,23 +231,4 @@ func (f *Framework) waitForReplicaSetCreation(t *testing.T, d appsv1.Deployment)
 		}
 	}
 	return "", fmt.Errorf("failed to wait for replicaset creation")
-}
-
-func createClientSet() (k8sClient *kubernetes.Clientset, err error) {
-	kubeconfig := os.Getenv("KUBECONFIG")
-	if kubeconfig == "" {
-		kubeconfig = os.Getenv("HOME") + "/.kube/config"
-	}
-
-	// create restconfig from kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	cs, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	return cs, nil
 }
