@@ -103,17 +103,29 @@ public key used to sign the image you're deploying.
 
 # Test
 
-Based on the signed image and the corresponding key, the demo app should appear or denied (check event log)
+To test the webhook, you may run the following command(s):
 
 ```bash
-kubectl create namespace cosignwebhook
-kubectl -n cosignwebhook apply -f manifests/demoapp.yaml
+# unit tests
+make test-unit
+
+# E2E tests
+make e2e-prep
+make test-e2e
 ```
+
+## E2E tests
+
+The E2E tests require a running kubernetes cluster. Currently, the namespace and webhook are deployed via helper make targets. To run the tests the following is required:
+
+- docker
+- cosign (v2)
 
 # TODO
 
 * [x] Support private images
 * [x] Support multiple container/keys
+* [ ] Support COSING_REPOSITORY
 
 # Local build
 
@@ -124,6 +136,7 @@ CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignw
 ## Credits
 
 Frank Kloeker f.kloeker@telekom.de
+Bruno Bressi, bruno.bressi@telekom.de
 
 Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull
 request.
