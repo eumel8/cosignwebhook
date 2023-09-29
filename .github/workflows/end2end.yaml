@@ -60,4 +60,5 @@ jobs:
         make e2e-deploy
     - name: Run End2End Tests
       run: |
+        go mod download
         make test-e2e
