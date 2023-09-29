@@ -1,3 +1,26 @@
+#############
+### TESTS ###
+#############
+.PHONY: test-e2e
+test-e2e:
+	@echo "Running e2e tests..."
+	@go test -v -race -count 1 ./test/
+
+test-cleanup:
+	@echo "Cleaning up..."
+	@helm uninstall cosignwebhook -n cosignwebhook
+	@k3d registry delete k3d-registry.localhost
+	@k3d cluster delete cosign-tests
+
+.PHONY: test-unit
+test-unit:
+	@echo "Running unit tests..."
+	@go test -v -race -count 1 ./webhook/
+
+###########
+### E2E ###
+###########
+
 e2e-cluster:
 	@echo "Creating registry..."
 	@k3d registry create registry.localhost --port 5000
@@ -44,18 +67,4 @@ e2e-deploy:
 		--set logLevel=debug \
 		--wait --debug
 
-.PHONY: test-e2e
-test-e2e:
-	@echo "Running e2e tests..."
-	@go test -v -race -count 1 ./test/
-
-.PHONY: test-unit
-test-unit:
-	@echo "Running unit tests..."
-	@go test -v -race -count 1 ./webhook/
-
-test-cleanup:
-	@echo "Cleaning up..."
-	@helm uninstall cosignwebhook -n cosignwebhook
-	@k3d registry delete k3d-registry.localhost
-	@k3d cluster delete cosign-tests
+e2e-prep: e2e-cluster e2e-keys e2e-images e2e-deploy
