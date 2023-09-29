@@ -13,7 +13,7 @@ jobs:
         k3d version
     - name: Create Cluster & Registry
       run: |
-          make test-create-cluster
+          make e2e-cluster
     - name: Check Cluster Nodes
       run: |
         kubectl get nodes
@@ -51,14 +51,13 @@ jobs:
         cosign-release: 'v2.2.0'
     - name: Create ephemeral keys
       run: |
-        make test-generate-keys
+        make e2e-keys
     - name: Build test image
       run: |
-        make test-image
+        make e2e-images
     - name: Install Cosignwebhook
       run: |
-        make test-deploy
+        make e2e-deploy
     - name: Run End2End Tests
       run: |
-        make test-busybox-images
         make test-e2e

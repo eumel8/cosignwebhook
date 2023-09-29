@@ -12,7 +12,12 @@ func TestDeployments(t *testing.T) {
 	}
 
 	testFuncs := map[string]func(t *testing.T){
-		"OneContainerPubKeyEnvVar": testOneContainerPubKeyEnvVar,
+		"OneContainerSinglePubKeyEnvRef":            testOneContainerSinglePubKeyEnvRef,
+		"TwoContainersSinglePubKeyEnvRef":           testTwoContainersSinglePubKeyEnvRef,
+		"OneContainerSinglePubKeySecretRef":         testOneContainerSinglePubKeySecretRef,
+		"TwoContainersSinglePubKeyMixedRef":         testTwoContainersSinglePubKeyMixedRef,
+		"TwoContainersMixedPubKeyMixedRef":          testTwoContainersMixedPubKeyMixedRef,
+		"TwoContainersSingleWithInitPubKeyMixedRef": testTwoContainersWithInitSinglePubKeyMixedRef,
 	}
 
 	for name, tf := range testFuncs {
