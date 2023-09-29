@@ -47,12 +47,12 @@ e2e-deploy:
 .PHONY: test-e2e
 test-e2e:
 	@echo "Running e2e tests..."
-	@go test -v -race -count 1 ./test/
+	@go test -race -count 1 ./test/
 
 .PHONY: test-unit
 test-unit:
 	@echo "Running unit tests..."
-	@go test -v -race -count 1 ./webhook/
+	@go test -race -count 1 ./webhook/
 
 test-cleanup:
 	@echo "Cleaning up..."
