@@ -63,7 +63,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 	}
 
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, "test-cases", "test-case-1")
+	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t, nil)
 }
 
@@ -134,7 +134,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 	}
 
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, "test-cases", "test-case-2")
+	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t, nil)
 }
 
@@ -208,7 +208,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, "test-cases", "test-case-3")
+	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t, nil)
 }
 
@@ -298,7 +298,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, "test-cases", "test-case-4")
+	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t, nil)
 
 }
@@ -389,7 +389,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, "test-cases", "test-case-5")
+	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t, nil)
 
 }
@@ -482,7 +482,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, "test-cases", "test-case-6")
+	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t, nil)
 }
 
