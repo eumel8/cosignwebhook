@@ -64,7 +64,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, "test-cases", "test-case-1")
-	fw.Cleanup(t)
+	fw.Cleanup(t, nil)
 }
 
 // testTwoContainersSinglePubKeyEnvRef tests that a deployment with two signed containers,
@@ -135,7 +135,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, "test-cases", "test-case-2")
-	fw.Cleanup(t)
+	fw.Cleanup(t, nil)
 }
 
 // testOneContainerPubKeySecret tests that a deployment with a single signed container,
@@ -209,7 +209,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, "test-cases", "test-case-3")
-	fw.Cleanup(t)
+	fw.Cleanup(t, nil)
 }
 
 // testTwoContainersMixedPubKeyMixedRef tests that a deployment with two signed containers with two different public keys,
@@ -299,7 +299,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, "test-cases", "test-case-4")
-	fw.Cleanup(t)
+	fw.Cleanup(t, nil)
 
 }
 
@@ -390,7 +390,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, "test-cases", "test-case-5")
-	fw.Cleanup(t)
+	fw.Cleanup(t, nil)
 
 }
 
@@ -483,5 +483,184 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, "test-cases", "test-case-6")
-	fw.Cleanup(t)
+	fw.Cleanup(t, nil)
+}
+
+// testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
+// with a public key provided via an environment variable, fails if the public key does not match the signature.
+func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
+
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _ = fw.CreateKeys(t, "test")
+	_, other := fw.CreateKeys(t, "other")
+	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+
+	// create a deployment with a single signed container and a public key provided via an environment variable
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fail-case-1",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "fail-case-1"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "fail-case-1"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "fail-case-1",
+							Image: "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: other,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.AssertDeploymentFailed(t, depl)
+	fw.Cleanup(t, nil)
+
+}
+
+// testTwoContainersSinglePubKeyNoMatchEnvRef tests that a deployment with two signed containers,
+// with a public key provided via an environment variable, fails if one of the container's pub key is malformed.
+func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
+
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, pub := fw.CreateKeys(t, "test")
+	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+
+	// create a deployment with two signed containers and a public key provided via an environment variable
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fail-case-2",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "fail-case-2"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "fail-case-2"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "fail-case-2-first",
+							Image: "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: pub,
+								},
+							},
+						},
+						{
+							Name:  "fail-case-2-second",
+							Image: "k3d-registry.localhost:5000/busybox:second",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: "not-a-public-key",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.AssertDeploymentFailed(t, depl)
+	fw.Cleanup(t, nil)
+
+}
+
+// testOneContainerSinglePubKeyMalformedEnvRef tests that a deployment with a single signed container,
+// // with a public key provided via an environment variable, fails if the public key has an incorrect format.
+func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fail-case-3",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "fail-case-3"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "fail-case-3"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "fail-case-3",
+							Image: "k3d-registry.localhost:5000/busybox:latest",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: "not-a-public-key",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.AssertDeploymentFailed(t, depl)
+	fw.Cleanup(t, nil)
+
 }
