@@ -43,7 +43,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Name:  "test-case-1",
-							Image: "k3d-registry.localhost:5000/busybox:latest",
+							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
 								"-c",
@@ -180,7 +180,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Name:  "test-case-3",
-							Image: "k3d-registry.localhost:5000/busybox:latest",
+							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
 								"-c",
@@ -640,7 +640,7 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Name:  "fail-case-3",
-							Image: "k3d-registry.localhost:5000/busybox:latest",
+							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
 								"-c",
