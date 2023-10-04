@@ -2,9 +2,12 @@ apiVersion: v2
 name: cosignwebhook
 description: A Helm chart for Cosign Webhook Admission Controller
 type: application
-version: 3.2.0
-appVersion: "3.2.0"
+version: 4.0.0
+appVersion: "4.0.0"
 maintainers:
   - name: eumel8
     email: f.kloeker@telekom.de
+    url: https://www.telekom.com
+  - name: puffitos
+    email: bruno.bressi@telekom.de
     url: https://www.telekom.com
