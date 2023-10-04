@@ -1,3 +1,15 @@
+
+[![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Go Report Card](https://goreportcard.com/badge/github.com/eumel8/cosignwebhook)](https://goreportcard.com/report/github.com/eumel8/cosignwebhook)
+[![Release](https://img.shields.io/github/v/release/eumel8/cosignwebhook?display_name=tag)](https://github.com/eumel8/cosignwebhook/releases)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/78288de2f8eb403fa8249293b2155dca)](https://app.codacy.com/gh/eumel8/cosignwebhook/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
+[![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/gotest.yaml/badge.svg)](https://github.com/eumel8/cosignwebhook/actions/workflows/gotest.yaml)
+[![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/end2end.yaml/badge.svg)](https://github.com/eumel8/cosignwebhook/actions/workflows/end2end.yaml)
+[![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/build.yaml/badge.svg)]([https://github.com/eumel8/cosignwebhook/actions/workflows/build.yaml)
+[![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/trivy.yaml/badge.svg)]([https://github.com/eumel8/cosignwebhook/actions/workflows/trivy.yaml)
+
+
 # Cosign Webhook
 
 Kubernetes Validation Admission Controller to verify Cosign Image signatures.
@@ -135,8 +147,8 @@ CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignw
 
 ## Credits
 
-Frank Kloeker f.kloeker@telekom.de
-Bruno Bressi, bruno.bressi@telekom.de
+- Bruno Bressi <bruno.bressi@telekom.de>
+- Frank Kloeker <f.kloeker@telekom.de>
 
 Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull
 request.
