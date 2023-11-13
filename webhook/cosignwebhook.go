@@ -97,7 +97,7 @@ func (csh *CosignServerHandler) recordEvent(p *corev1.Pod) {
 	eventBroadcaster.Shutdown()
 }
 
-// get container object from admission request
+// getPod returns the pod object from admission review request
 func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(byte, &arRequest); err != nil {
@@ -127,7 +127,7 @@ func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string)
 				return envVar.Value, nil
 			}
 
-			if envVar.ValueFrom.SecretKeyRef != nil {
+			if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil {
 				log.Debugf("Found reference to public key in secret %q for container %q", envVar.ValueFrom.SecretKeyRef.Name, c.Name)
 				return csh.getSecretValue(ns,
 					envVar.ValueFrom.SecretKeyRef.Name,
@@ -246,7 +246,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 
 // verifyContainer verifies the signature of the container image
 func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, ns string) error {
-	log.Debugf("Inspecting container %q in namespace %q", ns, c.Name)
+	log.Debugf("Inspecting container %q in namespace %q", c.Name, ns)
 	// Get public key from environment var
 	pubKey, err := csh.getPubKeyFromEnv(c, ns)
 	if err != nil {

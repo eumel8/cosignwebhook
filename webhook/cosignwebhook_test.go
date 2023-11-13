@@ -93,6 +93,19 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			want:          "",
 			wantErr:       true,
 		},
+		{
+			name: "cosign key without value",
+			container: &corev1.Container{
+				Env: []corev1.EnvVar{
+					{
+						Name: CosignEnvVar,
+					},
+				},
+			},
+			secretPresent: false,
+			want:          "",
+			wantErr:       true,
+		},
 	}
 
 	for _, tt := range tests {
