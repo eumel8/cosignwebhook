@@ -1,6 +1,5 @@
 cosignwebhook
 chart/caas-values.yaml
-vendor
 
 # the keypair used for test-signing of the webhook
 *.key
