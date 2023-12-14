@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/eumel8/cosignwebhook/webhook"
 	log "github.com/gookit/slog"
@@ -53,16 +54,21 @@ func main() {
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
 	if err != nil {
-		log.Errorf("Failed to load key pair: ", err)
+		log.Errorf("Failed to load key pair: %v", err)
 	}
 
 	server := &http.Server{
-		Addr:      fmt.Sprintf(":%v", port),
-		TLSConfig: &tls.Config{Certificates: []tls.Certificate{certs}},
+		Addr: fmt.Sprintf(":%v", port),
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{certs},
+			MinVersion:   tls.VersionTLS12,
+		},
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	mserver := &http.Server{
-		Addr: fmt.Sprintf(":%v", mport),
+		Addr:              fmt.Sprintf(":%v", mport),
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	// define http server and server handler
@@ -96,6 +102,6 @@ func main() {
 	<-signalChan
 
 	log.Info("Got shutdown signal, shutting down webhook server gracefully...")
-	server.Shutdown(context.Background())
-	mserver.Shutdown(context.Background())
+	_ = server.Shutdown(context.Background())
+	_ = mserver.Shutdown(context.Background())
 }

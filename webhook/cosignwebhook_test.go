@@ -139,27 +139,3 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 		})
 	}
 }
-
-func TestCosignServerHandler_verifyPodContainer(t *testing.T) {
-	//tests := []struct {
-	//	name    string
-	//	pod     *corev1.Pod
-	//	wantErr bool
-	//}{
-	//	{
-	//		name: "1 container, signed image, pub key present",
-	//	},
-	//}
-	//
-	//for _, tt := range tests {
-	//	t.Run(tt.name, func(t *testing.T) {
-	//		c := fake.NewSimpleClientset()
-	//		csh := &CosignServerHandler{
-	//			cs: c,
-	//		}
-	//		if err := csh.verifyContainer(tt.); (err != nil) != tt.wantErr {
-	//			t.Errorf("verifyContainer() error = %v, wantErr %v", err, tt.wantErr)
-	//		}
-	//	})
-	//}
-}

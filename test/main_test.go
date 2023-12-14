@@ -6,6 +6,9 @@ import (
 
 // TestPassingDeployments tests deployments that should pass signature verification
 func TestPassingDeployments(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test in short mode")
+	}
 
 	testFuncs := map[string]func(t *testing.T){
 		"OneContainerSinglePubKeyEnvRef":            testOneContainerSinglePubKeyEnvRef,
@@ -25,6 +28,9 @@ func TestPassingDeployments(t *testing.T) {
 
 // TestFailingDeployments tests deployments that should fail signature verification
 func TestFailingDeployments(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping E2E test in short mode")
+	}
 
 	testFuncs := map[string]func(t *testing.T){
 		"OneContainerSinglePubKeyMalformedEnvRef":  testOneContainerSinglePubKeyMalformedEnvRef,

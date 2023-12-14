@@ -105,9 +105,9 @@ func (csh *CosignServerHandler) recordNoVerification(p *corev1.Pod) {
 }
 
 // getPod returns the pod object from admission review request
-func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
+func getPod(b []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
-	if err := json.Unmarshal(byte, &arRequest); err != nil {
+	if err := json.Unmarshal(b, &arRequest); err != nil {
 		log.Error("Incorrect body")
 		return nil, nil, err
 	}
@@ -129,7 +129,7 @@ func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string) (string, error) {
 	for _, envVar := range c.Env {
 		if envVar.Name == CosignEnvVar {
-			if len(envVar.Value) != 0 {
+			if envVar.Value != "" {
 				log.Debugf("Found public key in env var for container %q", c.Name)
 				return envVar.Value, nil
 			}
@@ -147,33 +147,35 @@ func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string)
 }
 
 // getSecretValue returns the value of passed key for the secret with passed name in passed namespace
-func (csh *CosignServerHandler) getSecretValue(namespace string, name string, key string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (csh *CosignServerHandler) getSecretValue(namespace, secret, key string) (string, error) {
+	const readTimeout = 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
 	defer cancel()
-	secret, err := csh.cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	s, err := csh.cs.CoreV1().Secrets(namespace).Get(ctx, secret, metav1.GetOptions{})
 	if err != nil {
-		log.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
+		log.Debugf("Can't get secret %s/%s : %v", namespace, secret, err)
 		return "", err
 	}
-	value := secret.Data[key]
+	value := s.Data[key]
 	if len(value) == 0 {
-		log.Errorf("Secret value of %q is empty for %s/%s", key, namespace, name)
+		log.Errorf("Secret value of %q is empty for %s/%s", key, namespace, secret)
 		return "", nil
 	}
-	log.Debugf("Found public key in secret %s/%s, value: %s", namespace, name, value)
+	log.Debugf("Found public key in secret %s/%s, value: %s", namespace, secret, value)
 	return string(value), nil
 }
 
-func (csh *CosignServerHandler) Healthz(w http.ResponseWriter, r *http.Request) {
+func (csh *CosignServerHandler) Healthz(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("ok"))
 	if err != nil {
 		log.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return
 	}
 }
 
-func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
+func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) { //nolint:funlen,gocyclo // should refactor
 	var body []byte
 	if r.Body != nil {
 		if data, err := io.ReadAll(r.Body); err == nil {
@@ -230,10 +232,10 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	csh.kc = kc
 
 	signatureChecked := false
-	for _, c := range pod.Spec.InitContainers {
-
+	for _, c := range pod.Spec.InitContainers { //nolint:gocritic // no performance problems
+		c := c
 		pubKey := csh.getPubKeyFor(c, pod.Namespace)
-		if len(pubKey) == 0 {
+		if pubKey == "" {
 			continue
 		}
 
@@ -246,9 +248,10 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		signatureChecked = true
 	}
 
-	for i, c := range pod.Spec.Containers {
+	for i, c := range pod.Spec.Containers { //nolint:gocritic // no performance problems
+		c := c
 		pubKey := csh.getPubKeyFor(c, pod.Namespace)
-		if len(pubKey) == 0 {
+		if pubKey == "" {
 			continue
 		}
 		err = csh.verifyContainer(&c, pubKey)
@@ -270,8 +273,8 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 
 // getPubKeyFor searches for the public key to verify the container's signature.
 // If no public key is found, it returns an empty string.
-func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) string {
-	if len(c.Image) == 0 {
+func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) string { //nolint:gocritic // no performance problems
+	if c.Image == "" {
 		log.Debugf("Container %q has no image, skipping verification", c.Name)
 		return ""
 	}
@@ -285,7 +288,7 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 	}
 
 	// If no public key get here, try to load default secret
-	if len(pubKey) == 0 {
+	if pubKey == "" {
 		pubKey, err = csh.getSecretValue(ns, "cosignwebhook", CosignEnvVar)
 		if err != nil {
 			log.Debugf("Could not find pub key from default secret: %v", err)
@@ -294,7 +297,7 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 
 	// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
 	// In future versions this should block the start of the container
-	if len(pubKey) == 0 {
+	if pubKey == "" {
 		log.Debugf("No public key found, returning")
 		return ""
 	}
@@ -356,32 +359,36 @@ func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, pubKey stri
 
 // deny stops the container from starting
 func deny(w http.ResponseWriter, msg string, uid types.UID) {
-	resp, err := json.Marshal(admissionReview(403, false, "Failure", msg, uid))
+	resp, err := json.Marshal(admissionReview(http.StatusForbidden, false, "Failure", msg, uid))
 	if err != nil {
 		log.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return
 	}
 	if _, err := w.Write(resp); err != nil {
 		log.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return
 	}
 }
 
 // accept allows the container to start
 func accept(w http.ResponseWriter, msg string, uid types.UID) {
-	resp, err := json.Marshal(admissionReview(200, true, "Success", msg, uid))
+	resp, err := json.Marshal(admissionReview(http.StatusOK, true, "Success", msg, uid))
 	if err != nil {
 		log.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return
 	}
 	if _, err := w.Write(resp); err != nil {
 		log.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return
 	}
 }
 
 // admissionReview returns a AdmissionReview object with the passed parameters
-func admissionReview(admissionCode int32, admissionPermissions bool, admissionStatus string, admissionMessage string, requestUID types.UID) v1.AdmissionReview {
+func admissionReview(admissionCode int32, admissionPermissions bool, admissionStatus, admissionMessage string, requestUID types.UID) v1.AdmissionReview {
 	return v1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       admissionKind,

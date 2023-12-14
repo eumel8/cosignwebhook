@@ -1,12 +1,13 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/eumel8/cosignwebhook/test/framework"
 	"github.com/eumel8/cosignwebhook/webhook"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 // terminationGracePeriodSeconds is the termination grace period for the test deployments
@@ -69,7 +70,6 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 // testTwoContainersSinglePubKeyEnvRef tests that a deployment with two signed containers,
 // with a public key provided via an environment variable, succeeds.
 func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -140,7 +140,6 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 // testOneContainerPubKeySecret tests that a deployment with a single signed container,
 // with a public key provided via a secret, succeeds.
 func testOneContainerSinglePubKeySecretRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -299,13 +298,11 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testTwoContainersSinglePubKeyMixedRef tests that a deployment with two signed containers,
 // with a public key provided via a secret and an environment variable, succeeds.
 func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -390,13 +387,11 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testTwoContainersSinglePubKeyMixedRef tests that a deployment with two signed containers,
 // with a public key provided via a secret and an environment variable, succeeds.
 func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -585,7 +580,6 @@ func testEventEmittedOnNoSignatureVerification(t *testing.T) {
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, fails if the public key does not match the signature.
 func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -636,13 +630,11 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testTwoContainersSinglePubKeyNoMatchEnvRef tests that a deployment with two signed containers,
 // with a public key provided via an environment variable, fails if one of the container's pub key is malformed.
 func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -707,7 +699,6 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testOneContainerSinglePubKeyMalformedEnvRef tests that a deployment with a single signed container,
@@ -758,5 +749,4 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
-
 }
