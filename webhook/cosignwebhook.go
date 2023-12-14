@@ -61,6 +61,7 @@ var (
 type CosignServerHandler struct {
 	cs kubernetes.Interface
 	kc authn.Keychain
+	eb record.EventBroadcaster
 }
 
 func NewCosignServerHandler() *CosignServerHandler {
@@ -68,8 +69,11 @@ func NewCosignServerHandler() *CosignServerHandler {
 	if err != nil {
 		log.Errorf("Can't init rest client: %v", err)
 	}
+	eb := record.NewBroadcaster()
+	eb.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
 	return &CosignServerHandler{
 		cs: cs,
+		eb: eb,
 	}
 }
 
@@ -80,21 +84,24 @@ func restClient() (*kubernetes.Clientset, error) {
 		log.Errorf("error init in-cluster config: %v", err)
 		return nil, err
 	}
-	k8sclientset, err := kubernetes.NewForConfig(restConfig)
+	cs, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		log.Errorf("error creating k8sclientset: %v", err)
 		return nil, err
 	}
-	return k8sclientset, err
+	return cs, err
 }
 
-// recordEvent creates an image verified event for the container
-func (csh *CosignServerHandler) recordEvent(p *corev1.Pod) {
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: csh.cs.CoreV1().Events("")})
-	eventRecorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook", Host: os.Getenv("HOSTNAME")})
-	eventRecorder.Eventf(p, corev1.EventTypeNormal, "PodVerified", "Signature of pod's images(s) verified successfully")
-	eventBroadcaster.Shutdown()
+// recordPodVerified emits a PodVerified event for the container
+func (csh *CosignServerHandler) recordPodVerified(p *corev1.Pod) {
+	er := csh.eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook", Host: os.Getenv("HOSTNAME")})
+	er.Event(p, corev1.EventTypeNormal, "PodVerified", "Signature of pod's images(s) verified successfully")
+}
+
+// recordNoVerification emits a NoVerification event for the container
+func (csh *CosignServerHandler) recordNoVerification(p *corev1.Pod) {
+	er := csh.eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Cosignwebhook", Host: os.Getenv("HOSTNAME")})
+	er.Event(p, corev1.EventTypeNormal, "NoVerification", "No signature verification performed")
 }
 
 // getPod returns the pod object from admission review request
@@ -222,33 +229,57 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 	csh.kc = kc
 
+	signatureChecked := false
 	for _, c := range pod.Spec.InitContainers {
-		err = csh.verifyContainer(&c, pod.Namespace)
+
+		pubKey := csh.getPubKeyFor(c, pod.Namespace)
+		if len(pubKey) == 0 {
+			continue
+		}
+
+		err = csh.verifyContainer(&c, pubKey)
 		if err != nil {
 			log.Errorf("Error verifying init container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.InitContainers[0].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
 			return
 		}
+		signatureChecked = true
 	}
 
 	for i, c := range pod.Spec.Containers {
-		err = csh.verifyContainer(&c, pod.Namespace)
+		pubKey := csh.getPubKeyFor(c, pod.Namespace)
+		if len(pubKey) == 0 {
+			continue
+		}
+		err = csh.verifyContainer(&c, pubKey)
 		if err != nil {
 			log.Errorf("Error verifying container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
 			return
 		}
+		signatureChecked = true
 	}
 
-	accept(w, "Image signature(s) verified", arRequest.Request.UID)
-	csh.recordEvent(pod)
+	accept(w, "Cosign verification passed", arRequest.Request.UID)
+	if signatureChecked {
+		csh.recordPodVerified(pod)
+		return
+	}
+	csh.recordNoVerification(pod)
 }
 
-// verifyContainer verifies the signature of the container image
-func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, ns string) error {
-	log.Debugf("Inspecting container %q in namespace %q", c.Name, ns)
-	// Get public key from environment var
-	pubKey, err := csh.getPubKeyFromEnv(c, ns)
+// getPubKeyFor searches for the public key to verify the container's signature.
+// If no public key is found, it returns an empty string.
+func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) string {
+	if len(c.Image) == 0 {
+		log.Debugf("Container %q has no image, skipping verification", c.Name)
+		return ""
+	}
+	if len(c.Env) == 0 {
+		log.Debugf("Container %q has no env vars, skipping verification", c.Name)
+		return ""
+	}
+	pubKey, err := csh.getPubKeyFromEnv(&c, ns)
 	if err != nil {
 		log.Debugf("Could not find pub key in container's %q environment: %v", c.Name, err)
 	}
@@ -265,8 +296,16 @@ func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, ns string) 
 	// In future versions this should block the start of the container
 	if len(pubKey) == 0 {
 		log.Debugf("No public key found, returning")
-		return nil
+		return ""
 	}
+
+	log.Debugf("Found public key for container %q", c.Name)
+	return pubKey
+}
+
+// verifyContainer verifies the signature of the container image
+func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, pubKey string) error {
+	log.Debugf("Verifying container %s", c.Name)
 
 	// Lookup image name of current container
 	image := c.Image
