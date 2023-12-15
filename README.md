@@ -1,4 +1,3 @@
-
 [![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Go Report Card](https://goreportcard.com/badge/github.com/eumel8/cosignwebhook)](https://goreportcard.com/report/github.com/eumel8/cosignwebhook)
 [![Release](https://img.shields.io/github/v/release/eumel8/cosignwebhook?display_name=tag)](https://github.com/eumel8/cosignwebhook/releases)
@@ -8,7 +7,6 @@
 [![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/end2end.yaml/badge.svg)](https://github.com/eumel8/cosignwebhook/actions/workflows/end2end.yaml)
 [![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/build.yaml/badge.svg)]([https://github.com/eumel8/cosignwebhook/actions/workflows/build.yaml)
 [![Pipeline](https://github.com/eumel8/cosignwebhook/actions/workflows/trivy.yaml/badge.svg)]([https://github.com/eumel8/cosignwebhook/actions/workflows/trivy.yaml)
-
 
 # Cosign Webhook
 
@@ -128,10 +126,20 @@ make test-e2e
 
 ## E2E tests
 
-The E2E tests require a running kubernetes cluster. Currently, the namespace and webhook are deployed via helper make targets. To run the tests the following is required:
+The E2E tests require a running kubernetes cluster. Currently, the namespace and webhook are deployed via helper make
+targets. To run the tests the following is required:
 
 - docker
 - cosign (v2)
+
+To run the E2E tests, the following steps are required (in order):
+
+- signing keys are generated (`make e2e-keys`)
+- a new `cosignwebhook` image is build and signed with a temp key (`make e2e-images`)
+- the image is pushed to a local registry & deployed to the test cluster (`make e2e-deploy`)
+
+To do all of the above, simply run `make e2e-prep`. Each step should also be able to be executed individually. To clean
+up the E2E setup, run `make e2e-cleanup`. This will delete everything created by the E2E preparation.
 
 # TODO
 

@@ -2,12 +2,11 @@ package test
 
 import (
 	"github.com/eumel8/cosignwebhook/test/framework"
-	"testing"
-
 	"github.com/eumel8/cosignwebhook/webhook"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"testing"
 )
 
 // terminationGracePeriodSeconds is the termination grace period for the test deployments
@@ -47,7 +46,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -64,7 +63,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 }
 
 // testTwoContainersSinglePubKeyEnvRef tests that a deployment with two signed containers,
@@ -103,7 +102,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -118,7 +117,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -135,7 +134,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 }
 
 // testOneContainerPubKeySecret tests that a deployment with a single signed container,
@@ -184,7 +183,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -209,7 +208,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 }
 
 // testTwoContainersMixedPubKeyMixedRef tests that a deployment with two signed containers with two different public keys,
@@ -259,7 +258,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -281,7 +280,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -299,7 +298,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 
 }
 
@@ -350,7 +349,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -372,7 +371,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -390,7 +389,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 
 }
 
@@ -465,7 +464,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -483,7 +482,104 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 	fw.CreateSecret(t, secret)
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
+}
+
+// testEventEmittedOnSignatureVerification tests
+// that an event is emitted when a deployment passes signature verification
+func testEventEmittedOnSignatureVerification(t *testing.T) {
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, pub := fw.CreateKeys(t, "test")
+	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+
+	// create a deployment with a single signed container and a public key provided via an environment variable
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-case-7",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "test-case-7"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test-case-7"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "test-case-7",
+							Image: "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{
+								"sh",
+								"-c",
+								"echo 'hello world, i am tired and will sleep now, for a bit...'; sleep 60",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: pub,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.WaitForDeployment(t, depl)
+	pod := fw.GetPods(t, depl)
+	fw.AssertEventForPod(t, "PodVerified", pod.Items[0])
+	fw.Cleanup(t)
+}
+
+func testEventEmittedOnNoSignatureVerification(t *testing.T) {
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a deployment with a single unsigned container
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-case-8",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "test-case-8"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "test-case-8"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:    "test-case-8",
+							Image:   "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{"sh", "-c", "echo 'hello world, i am tired and will sleep now, for a bit...'; sleep 60"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.WaitForDeployment(t, depl)
+	pl := fw.GetPods(t, depl)
+	fw.AssertEventForPod(t, "NoVerification", pl.Items[0])
+	fw.Cleanup(t)
 }
 
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
@@ -522,7 +618,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -539,7 +635,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 
 }
 
@@ -578,7 +674,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -593,7 +689,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -610,7 +706,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 
 }
 
@@ -644,7 +740,7 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 							Command: []string{
 								"sh",
 								"-c",
-								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 10; done",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -661,6 +757,6 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
-	fw.Cleanup(t, nil)
+	fw.Cleanup(t)
 
 }

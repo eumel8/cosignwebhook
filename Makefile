@@ -68,3 +68,10 @@ e2e-deploy:
 		--wait --debug
 
 e2e-prep: e2e-cluster e2e-keys e2e-images e2e-deploy
+
+e2e-cleanup:
+	@echo "Cleaning up..."
+	@helm uninstall cosignwebhook -n cosignwebhook
+	@k3d registry delete k3d-registry.localhost
+	@k3d cluster delete cosign-tests
+	@rm -f cosign.pub cosign.key second.pub second.key

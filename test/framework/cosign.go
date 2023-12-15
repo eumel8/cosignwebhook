@@ -43,17 +43,17 @@ func (f *Framework) CreateKeys(t testing.TB, name string) (string, string) {
 	cmd.SetArgs(args)
 	err = cmd.Execute()
 	if err != nil {
-		f.Cleanup(t, err)
+		f.Cleanup(t)
 	}
 
 	// read private key and public key from the current directory
 	privateKey, err := os.ReadFile(fmt.Sprintf("%s.key", name))
 	if err != nil {
-		f.Cleanup(t, err)
+		f.Cleanup(t)
 	}
 	pubKey, err := os.ReadFile(fmt.Sprintf("%s.pub", name))
 	if err != nil {
-		f.Cleanup(t, err)
+		f.Cleanup(t)
 	}
 
 	return string(privateKey), string(pubKey)
@@ -86,6 +86,6 @@ func (f *Framework) SignContainer(t *testing.T, priv, img string) {
 	_ = cmd.Flags().Set("allow-http-registry", "true")
 	err := cmd.Execute()
 	if err != nil {
-		f.Cleanup(t, err)
+		f.Cleanup(t)
 	}
 }
