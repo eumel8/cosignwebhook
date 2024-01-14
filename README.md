@@ -42,6 +42,8 @@ kubectl -n cosignwebhook apply -f manifests/rbac.yaml
 kubectl -n cosignwebhook apply -f manifests/manifest.yaml
 ```
 
+The manifest contains a self-signed example ca, TLS certificate, and key. This is only to see how it looks like, you should generate your own certificate, see below:
+
 ## Cert generation
 
 Run the generate-certs script in the `hack` folder to generate the TLS key pair and the CA certificate for the webhook:
