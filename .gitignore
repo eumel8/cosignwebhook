@@ -1,1 +1,5 @@
+# compiled binary, never checked in
 cosignwebhook
+# required foe e2e test
+*.key
+*.pub
