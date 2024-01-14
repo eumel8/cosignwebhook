@@ -218,10 +218,11 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		Namespace:          pod.Namespace,
 		ServiceAccountName: pod.Spec.ServiceAccountName,
 		ImagePullSecrets:   imagePullSecrets,
+		UseMountSecrets:    false,
 	}
 
 	ctx := r.Context()
-	kc, err := k8schain.New(ctx, csh.cs, opt)
+	kc, err := k8schain.NewInCluster(ctx, opt)
 	if err != nil {
 		log.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
