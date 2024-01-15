@@ -70,7 +70,7 @@ spec:
         - --key
         - env://COSIGNPUBKEY
         - --insecure-ignore-tlog=true
-        - mtr.devops.telekom.de/caas/cosignwebhook:4.0.4
+        - mtr.devops.telekom.de/caas/cosignwebhook:4.0.5
         command:
         - cosign
         env:
@@ -92,7 +92,7 @@ spec:
             memory: 64Mi
       containers:
         - name: cosignwebhook
-          image: mtr.devops.telekom.de/caas/cosignwebhook:4.0.4
+          image: mtr.devops.telekom.de/caas/cosignwebhook:4.0.5
           imagePullPolicy: Always
           args:
             - -logLevel
