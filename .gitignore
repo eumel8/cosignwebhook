@@ -1,6 +1,5 @@
+# compiled binary, never checked in
 cosignwebhook
-chart/caas-values.yaml
-
-# the keypair used for test-signing of the webhook
+# required foe e2e test
 *.key
 *.pub
