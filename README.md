@@ -136,6 +136,7 @@ targets. To run the tests the following is required:
 
 To run the E2E tests, the following steps are required (in order):
 
+- create a k3d local cluster for the tests and a local iamge registry (`make e2e-cluster`)
 - signing keys are generated (`make e2e-keys`)
 - a new `cosignwebhook` image is build and signed with a temp key (`make e2e-images`)
 - the image is pushed to a local registry & deployed to the test cluster (`make e2e-deploy`)

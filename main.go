@@ -5,13 +5,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/gookit/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/eumel8/cosignwebhook/webhook"
-	log "github.com/gookit/slog"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -34,26 +34,26 @@ func main() {
 	// set log level
 	switch *logLevel {
 	case "fatal":
-		log.SetLogLevel(log.FatalLevel)
+		slog.SetLogLevel(slog.FatalLevel)
 	case "trace":
-		log.SetLogLevel(log.TraceLevel)
+		slog.SetLogLevel(slog.TraceLevel)
 	case "debug":
-		log.SetLogLevel(log.DebugLevel)
+		slog.SetLogLevel(slog.DebugLevel)
 	case "error":
-		log.SetLogLevel(log.ErrorLevel)
+		slog.SetLogLevel(slog.ErrorLevel)
 	case "warn":
-		log.SetLogLevel(log.WarnLevel)
+		slog.SetLogLevel(slog.WarnLevel)
 	case "info":
-		log.SetLogLevel(log.InfoLevel)
+		slog.SetLogLevel(slog.InfoLevel)
 	default:
-		log.SetLogLevel(log.InfoLevel)
+		slog.SetLogLevel(slog.InfoLevel)
 	}
 
-	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
+	slog.GetFormatter().(*slog.TextFormatter).SetTemplate(logTemplate)
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
 	if err != nil {
-		log.Errorf("Failed to load key pair: ", err)
+		slog.Error("failed to load key pair", "error", err)
 	}
 
 	server := &http.Server{
@@ -79,23 +79,23 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			log.Errorf("Failed to listen and serve webhook server %v", err)
+			slog.Error("Failed to listen and serve webhook server", "error", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			log.Errorf("Failed to listen and serve monitor server %v", err)
+			slog.Error("Failed to listen and serve monitor server %v", "error", err)
 		}
 	}()
 
-	log.Infof("Server running listening in port: %s,%s", port, mport)
+	slog.Info("Webhook server running", "port", port, "metricsPort", mport)
 
 	// listening shutdown signal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	log.Info("Got shutdown signal, shutting down webhook server gracefully...")
-	server.Shutdown(context.Background())
-	mserver.Shutdown(context.Background())
+	slog.Info("Got shutdown signal, shutting down webhook server gracefully...")
+	_ = server.Shutdown(context.Background())
+	_ = mserver.Shutdown(context.Background())
 }

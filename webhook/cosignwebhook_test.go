@@ -141,7 +141,7 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 }
 
 func TestCosignServerHandler_verifyPodContainer(t *testing.T) {
-	//tests := []struct {
+	// tests := []struct {
 	//	name    string
 	//	pod     *corev1.Pod
 	//	wantErr bool

@@ -37,7 +37,7 @@ e2e-keys:
 
 e2e-images:
 	@echo "Checking for cosign.key..."
-	@test -f cosign.key || (echo "cosign.key not found. Run 'make generate-key' to generate one." && exit 1)
+	@test -f cosign.key || (echo "cosign.key not found. Run 'make e2e-keys' to generate the pairs needed for the tests." && exit 1)
 	@echo "Building test image..."
 	@docker build -t k3d-registry.localhost:5000/cosignwebhook:dev .
 	@echo "Pushing test image..."

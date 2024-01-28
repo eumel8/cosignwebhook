@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gookit/slog"
 	"io"
 	"net/http"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"k8s.io/apimachinery/pkg/types"
 
-	log "github.com/gookit/slog"
 	v1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,7 +67,7 @@ type CosignServerHandler struct {
 func NewCosignServerHandler() *CosignServerHandler {
 	cs, err := restClient()
 	if err != nil {
-		log.Errorf("Can't init rest client: %v", err)
+		slog.Errorf("Can't init rest client: %v", err)
 	}
 	eb := record.NewBroadcaster()
 	eb.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: cs.CoreV1().Events("")})
@@ -81,12 +81,12 @@ func NewCosignServerHandler() *CosignServerHandler {
 func restClient() (*kubernetes.Clientset, error) {
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
-		log.Errorf("error init in-cluster config: %v", err)
+		slog.Errorf("error init in-cluster config: %v", err)
 		return nil, err
 	}
 	cs, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		log.Errorf("error creating k8sclientset: %v", err)
+		slog.Errorf("error creating k8sclientset: %v", err)
 		return nil, err
 	}
 	return cs, err
@@ -108,17 +108,17 @@ func (csh *CosignServerHandler) recordNoVerification(p *corev1.Pod) {
 func getPod(byte []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	arRequest := v1.AdmissionReview{}
 	if err := json.Unmarshal(byte, &arRequest); err != nil {
-		log.Error("Incorrect body")
+		slog.Error("Incorrect body")
 		return nil, nil, err
 	}
 	if arRequest.Request == nil {
-		log.Error("AdmissionReview request not found")
+		slog.Error("AdmissionReview request not found")
 		return nil, nil, fmt.Errorf("admissionreview request not found")
 	}
 	raw := arRequest.Request.Object.Raw
 	pod := corev1.Pod{}
 	if err := json.Unmarshal(raw, &pod); err != nil {
-		log.Error("Error deserializing container")
+		slog.Error("Error deserializing container")
 		return nil, nil, err
 	}
 	return &pod, &arRequest, nil
@@ -130,12 +130,12 @@ func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string)
 	for _, envVar := range c.Env {
 		if envVar.Name == CosignEnvVar {
 			if len(envVar.Value) != 0 {
-				log.Debugf("Found public key in env var for container %q", c.Name)
+				slog.Debugf("Found public key in env var for container %q", c.Name)
 				return envVar.Value, nil
 			}
 
 			if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil {
-				log.Debugf("Found reference to public key in secret %q for container %q", envVar.ValueFrom.SecretKeyRef.Name, c.Name)
+				slog.Debugf("Found reference to public key in secret %q for container %q", envVar.ValueFrom.SecretKeyRef.Name, c.Name)
 				return csh.getSecretValue(ns,
 					envVar.ValueFrom.SecretKeyRef.Name,
 					envVar.ValueFrom.SecretKeyRef.Key,
@@ -152,15 +152,15 @@ func (csh *CosignServerHandler) getSecretValue(namespace string, name string, ke
 	defer cancel()
 	secret, err := csh.cs.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		log.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
+		slog.Debugf("Can't get secret %s/%s : %v", namespace, name, err)
 		return "", err
 	}
 	value := secret.Data[key]
 	if len(value) == 0 {
-		log.Errorf("Secret value of %q is empty for %s/%s", key, namespace, name)
+		slog.Errorf("Secret value of %q is empty for %s/%s", key, namespace, name)
 		return "", nil
 	}
-	log.Debugf("Found public key in secret %s/%s, value: %s", namespace, name, value)
+	slog.Debugf("Found public key in secret %s/%s, value: %s", namespace, name, value)
 	return string(value), nil
 }
 
@@ -168,7 +168,7 @@ func (csh *CosignServerHandler) Healthz(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("ok"))
 	if err != nil {
-		log.Errorf("Can't write response: %v", err)
+		slog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }
@@ -189,13 +189,13 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 
 	// Url path of admission
 	if r.URL.Path != "/validate" {
-		log.Error("No validate URI")
+		slog.Error("No validate URI")
 		http.Error(w, "no validate", http.StatusBadRequest)
 		return
 	}
 
 	if len(body) == 0 {
-		log.Error("Empty body")
+		slog.Error("Empty body")
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
@@ -205,7 +205,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 
 	pod, arRequest, err := getPod(body)
 	if err != nil {
-		log.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error getPod in %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "incorrect body", http.StatusBadRequest)
 		return
 	}
@@ -224,7 +224,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	kc, err := k8schain.NewInCluster(ctx, opt)
 	if err != nil {
-		log.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
+		slog.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
 		return
 	}
@@ -232,7 +232,6 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 
 	signatureChecked := false
 	for _, c := range pod.Spec.InitContainers {
-
 		pubKey := csh.getPubKeyFor(c, pod.Namespace)
 		if len(pubKey) == 0 {
 			continue
@@ -240,7 +239,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 
 		err = csh.verifyContainer(&c, pubKey)
 		if err != nil {
-			log.Errorf("Error verifying init container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.InitContainers[0].Name, err)
+			slog.Errorf("Error verifying init container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.InitContainers[0].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
 			return
 		}
@@ -254,7 +253,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		}
 		err = csh.verifyContainer(&c, pubKey)
 		if err != nil {
-			log.Errorf("Error verifying container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
+			slog.Errorf("Error verifying container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
 			return
 		}
@@ -273,66 +272,66 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 // If no public key is found, it returns an empty string.
 func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) string {
 	if len(c.Image) == 0 {
-		log.Debugf("Container %q has no image, skipping verification", c.Name)
+		slog.Debugf("Container %q has no image, skipping verification", c.Name)
 		return ""
 	}
 	if len(c.Env) == 0 {
-		log.Debugf("Container %q has no env vars, skipping verification", c.Name)
+		slog.Debugf("Container %q has no env vars, skipping verification", c.Name)
 		return ""
 	}
 	pubKey, err := csh.getPubKeyFromEnv(&c, ns)
 	if err != nil {
-		log.Debugf("Could not find pub key in container's %q environment: %v", c.Name, err)
+		slog.Debugf("Could not find pub key in container's %q environment: %v", c.Name, err)
 	}
 
 	// If no public key get here, try to load default secret
 	if len(pubKey) == 0 {
 		pubKey, err = csh.getSecretValue(ns, "cosignwebhook", CosignEnvVar)
 		if err != nil {
-			log.Debugf("Could not find pub key from default secret: %v", err)
+			slog.Debugf("Could not find pub key from default secret: %v", err)
 		}
 	}
 
 	// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
 	// In future versions this should block the start of the container
 	if len(pubKey) == 0 {
-		log.Debugf("No public key found, returning")
+		slog.Debugf("No public key found, returning")
 		return ""
 	}
 
-	log.Debugf("Found public key for container %q", c.Name)
+	slog.Debugf("Found public key for container %q", c.Name)
 	return pubKey
 }
 
 // verifyContainer verifies the signature of the container image
 func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, pubKey string) error {
-	log.Debugf("Verifying container %s", c.Name)
+	slog.Debugf("Verifying container %s", c.Name)
 
 	// Lookup image name of current container
 	image := c.Image
 	refImage, err := name.ParseReference(image)
 	if err != nil {
-		log.Errorf("Error parsing image reference: %v", err)
+		slog.Errorf("Error parsing image reference: %v", err)
 		return fmt.Errorf("could parse image reference for image %q", image)
 	}
 
 	// Encrypt public key
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
-		log.Errorf("Error unmarshalling public key: %v", err)
+		slog.Errorf("Error unmarshalling public key: %v", err)
 		return fmt.Errorf("public key for image %q malformed", image)
 	}
 
 	// Load public key to verify
 	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
 	if err != nil {
-		log.Errorf("Error loading ECDSA verifier: %v", err)
+		slog.Errorf("Error loading ECDSA verifier: %v", err)
 		return errors.New("failed creating key verifier")
 	}
 
 	// Verify signature on remote image with the presented public key
 	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc))}
-	log.Debugf("Verifying image %q with public key %q", image, pubKey)
+	slog.Debugf("Verifying image %q with public key %q", image, pubKey)
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,
@@ -345,13 +344,13 @@ func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, pubKey stri
 
 	// Verify Image failed, needs to reject container start
 	if err != nil {
-		log.Errorf("Error verifying signature: %v", err)
+		slog.Errorf("Error verifying signature: %v", err)
 		return fmt.Errorf("signature for %q couldn't be verified", image)
 	}
 
 	// count successful verifies for prometheus metric
 	verifiedProcessed.Inc()
-	log.Infof("Image %q verified successfully", image)
+	slog.Infof("Image %q verified successfully", image)
 	return nil
 }
 
@@ -359,11 +358,11 @@ func (csh *CosignServerHandler) verifyContainer(c *corev1.Container, pubKey stri
 func deny(w http.ResponseWriter, msg string, uid types.UID) {
 	resp, err := json.Marshal(admissionReview(403, false, "Failure", msg, uid))
 	if err != nil {
-		log.Errorf("Can't encode response: %v", err)
+		slog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 	if _, err := w.Write(resp); err != nil {
-		log.Errorf("Can't write response: %v", err)
+		slog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }
@@ -372,11 +371,11 @@ func deny(w http.ResponseWriter, msg string, uid types.UID) {
 func accept(w http.ResponseWriter, msg string, uid types.UID) {
 	resp, err := json.Marshal(admissionReview(200, true, "Success", msg, uid))
 	if err != nil {
-		log.Errorf("Can't encode response: %v", err)
+		slog.Errorf("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 	if _, err := w.Write(resp); err != nil {
-		log.Errorf("Can't write response: %v", err)
+		slog.Errorf("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }
