@@ -751,6 +751,9 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 	fw.Cleanup(t)
 }
 
+// testOneContainerSinglePubKeyNoMatchSecretRef tests that a deployment with a single signed container,
+// with a public key provided via a secret, fails if the public key does not match the signature, which
+// is uploaded in a different repository as the image itself
 func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
 	fw, err := framework.New()
 	if err != nil {
@@ -798,6 +801,6 @@ func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
 	}
 
 	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, depl)
+	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
 }
