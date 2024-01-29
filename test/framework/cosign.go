@@ -33,7 +33,7 @@ func cleanupKeys(t testing.TB) {
 }
 
 // CreateKeys creates a signing keypair for cosing with the provided name
-func (f *Framework) CreateKeys(t testing.TB, name string) (string, string) {
+func (f *Framework) CreateKeys(t testing.TB, name string) (private string, public string) {
 	args := []string{fmt.Sprintf("--output-key-prefix=%s", name)}
 	err := os.Setenv("COSIGN_PASSWORD", "")
 	if err != nil {

@@ -577,61 +577,6 @@ func testEventEmittedOnNoSignatureVerification(t *testing.T) {
 	fw.Cleanup(t)
 }
 
-func testOneContainerWithCosingRepoVariable(t *testing.T) {
-	fw, err := framework.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, pub := fw.CreateKeys(t, "test")
-	t.Setenv("COSIGN_REPOSITORY", "k3d-registry.localhost:5000/sigs")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
-
-	depl := appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "one-container-with-cosign-repo",
-			Namespace: "test-cases",
-		},
-		Spec: appsv1.DeploymentSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "one-container-with-cosign-repo"},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "one-container-with-cosign-repo"},
-				},
-				Spec: corev1.PodSpec{
-					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
-					Containers: []corev1.Container{
-						{
-							Name:  "one-container-with-cosign-repo",
-							Image: "k3d-registry.localhost:5000/busybox:first",
-							Command: []string{
-								"sh", "-c",
-								"echo 'hello world, i am tired and will sleep now, for a bit...'; sleep 60",
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  webhook.CosignEnvVar,
-									Value: pub,
-								},
-								{
-									Name:  "COSIGN_REPOSITORY",
-									Value: "k3d-registry.localhost:5000/signatures",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	fw.CreateDeployment(t, depl)
-	fw.WaitForDeployment(t, depl)
-	fw.Cleanup(t)
-}
-
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, fails if the public key does not match the signature.
 func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {

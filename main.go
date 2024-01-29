@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/gookit/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	"github.com/gookit/slog"
 
 	"github.com/eumel8/cosignwebhook/webhook"
 
@@ -57,12 +59,17 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:      fmt.Sprintf(":%v", port),
-		TLSConfig: &tls.Config{Certificates: []tls.Certificate{certs}},
+		Addr: fmt.Sprintf(":%v", port),
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{certs},
+			MinVersion:   tls.VersionTLS12,
+		},
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	mserver := &http.Server{
-		Addr: fmt.Sprintf(":%v", mport),
+		Addr:              fmt.Sprintf(":%v", mport),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// define http server and server handler
