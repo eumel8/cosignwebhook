@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gookit/slog"
+	log "github.com/gookit/slog"
 
 	"github.com/eumel8/cosignwebhook/webhook"
 
@@ -36,26 +36,26 @@ func main() {
 	// set log level
 	switch *logLevel {
 	case "fatal":
-		slog.SetLogLevel(slog.FatalLevel)
+		log.SetLogLevel(log.FatalLevel)
 	case "trace":
-		slog.SetLogLevel(slog.TraceLevel)
+		log.SetLogLevel(log.TraceLevel)
 	case "debug":
-		slog.SetLogLevel(slog.DebugLevel)
+		log.SetLogLevel(log.DebugLevel)
 	case "error":
-		slog.SetLogLevel(slog.ErrorLevel)
+		log.SetLogLevel(log.ErrorLevel)
 	case "warn":
-		slog.SetLogLevel(slog.WarnLevel)
+		log.SetLogLevel(log.WarnLevel)
 	case "info":
-		slog.SetLogLevel(slog.InfoLevel)
+		log.SetLogLevel(log.InfoLevel)
 	default:
-		slog.SetLogLevel(slog.InfoLevel)
+		log.SetLogLevel(log.InfoLevel)
 	}
 
-	slog.GetFormatter().(*slog.TextFormatter).SetTemplate(logTemplate)
+	log.GetFormatter().(*log.TextFormatter).SetTemplate(logTemplate)
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
 	if err != nil {
-		slog.Error("failed to load key pair", "error", err)
+		log.Error("failed to load key pair", "error", err)
 	}
 
 	server := &http.Server{
@@ -86,23 +86,23 @@ func main() {
 	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			slog.Error("Failed to listen and serve webhook server", "error", err)
+			log.Error("Failed to listen and serve webhook server", "error", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			slog.Error("Failed to listen and serve monitor server %v", "error", err)
+			log.Error("Failed to listen and serve monitor server %v", "error", err)
 		}
 	}()
 
-	slog.Info("Webhook server running", "port", port, "metricsPort", mport)
+	log.Info("Webhook server running", "port", port, "metricsPort", mport)
 
 	// listening shutdown signal
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 	<-signalChan
 
-	slog.Info("Got shutdown signal, shutting down webhook server gracefully...")
+	log.Info("Got shutdown signal, shutting down webhook server gracefully...")
 	_ = server.Shutdown(context.Background())
 	_ = mserver.Shutdown(context.Background())
 }
