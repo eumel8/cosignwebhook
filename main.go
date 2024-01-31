@@ -83,7 +83,6 @@ func main() {
 	mmux.Handle("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 
-	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
 			log.Error("Failed to listen and serve webhook server", "error", err)
