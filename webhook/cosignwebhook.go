@@ -215,7 +215,6 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	kc, err := newKeychainForPod(ctx, pod)
 	if err != nil {
-		log.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
 		return
 	}
@@ -296,6 +295,7 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 	}
 
 	// If no public key get here, try to load default secret
+	// Should be deprecated in future versions
 	if pubKey == "" {
 		pubKey, err = csh.getSecretValue(ns, "cosignwebhook", CosignEnvVar)
 		if err != nil {
