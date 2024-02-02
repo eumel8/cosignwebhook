@@ -55,7 +55,7 @@ func main() {
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
 	if err != nil {
-		log.Error("failed to load key pair", "error", err)
+		log.Errorf("failed to load key pair: %v", err)
 	}
 
 	server := &http.Server{
@@ -85,12 +85,12 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			log.Error("Failed to listen and serve webhook server", "error", err)
+			log.Errorf("Failed to listen and serve webhook server: %v", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			log.Error("Failed to listen and serve monitor server %v", "error", err)
+			log.Errorf("Failed to listen and serve monitor server: %v", err)
 		}
 	}()
 
