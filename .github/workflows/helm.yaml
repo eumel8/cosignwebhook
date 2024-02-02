@@ -1,0 +1,31 @@
+name: Build Chart
+
+on:
+  push:
+    branches:
+      - main
+    tags:        
+      - '*'
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+      - name: Helm lint & package & push
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+          helm registry login ${GHR} -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          helm registry login ${MTR} -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+          helm lint chart
+          helm package chart
+          helm push $(ls *.tgz| head -1) oci://${GHR}/${{ github.actor }}/charts
+          helm push $(ls *.tgz| head -1) oci://${MTR}/${REPO}/charts
+        env:
+          DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
+          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+          GHR: ghcr.io
+          MTR: mtr.devops.telekom.de
+          REPO: caas
