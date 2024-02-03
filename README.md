@@ -152,15 +152,15 @@ make test-e2e
 The E2E tests require a running kubernetes cluster. Currently, the namespace and webhook are deployed via helper make
 targets. To run the tests the following is required:
 
-- docker
-- cosign (v2)
+* docker
+* cosign (v2)
 
 To run the E2E tests, the following steps are required (in order):
 
-- create a k3d local cluster for the tests and a local iamge registry (`make e2e-cluster`)
-- signing keys are generated (`make e2e-keys`)
-- a new `cosignwebhook` image is build and signed with a temp key (`make e2e-images`)
-- the image is pushed to a local registry & deployed to the test cluster (`make e2e-deploy`)
+* create a k3d local cluster for the tests and a local iamge registry (`make e2e-cluster`)
+* signing keys are generated (`make e2e-keys`)
+* a new `cosignwebhook` image is build and signed with a temp key (`make e2e-images`)
+* the image is pushed to a local registry & deployed to the test cluster (`make e2e-deploy`)
 
 To do all of the above, simply run `make e2e-prep`. Each step should also be able to be executed individually. To clean
 up the E2E setup, run `make e2e-cleanup`. This will delete everything created by the E2E preparation.
