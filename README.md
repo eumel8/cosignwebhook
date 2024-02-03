@@ -132,7 +132,7 @@ type: Opaque
 The name of the secret must be `cosignwebhook` and the key `COSIGNPUBKEY`. The value of `COSIGNPUBKEY` must match the
 public key used to sign the image you're deploying.
 
-##   
+##     
 
 ## Test
 
@@ -163,7 +163,9 @@ To run the E2E tests, the following steps are required (in order):
 * the image is pushed to a local registry & deployed to the test cluster (`make e2e-deploy`)
 
 To do all of the above, simply run `make e2e-prep`. Each step should also be able to be executed individually. To clean
-up the E2E setup, run `make e2e-cleanup`. This will delete everything created by the E2E preparation.
+up the E2E setup, run `make e2e-cleanup`.
+This will delete everything created by the E2E preparation. If you've already created the cluster and the keys, and
+you're actively testing new code, you may run `make e2e-images e2e-deploy test-e2e` to test your changes.
 
 ## Local build
 
@@ -173,8 +175,8 @@ CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignw
 
 ## Credits
 
-- Bruno Bressi <bruno.bressi@telekom.de>
-- Frank Kloeker <f.kloeker@telekom.de>
+* Bruno Bressi <bruno.bressi@telekom.de>
+* Frank Kloeker <f.kloeker@telekom.de>
 
 Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull
 request.
