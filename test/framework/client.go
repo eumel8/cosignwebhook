@@ -117,6 +117,19 @@ func (f *Framework) cleanupSecrets(t testing.TB) {
 	}
 }
 
+// GetPods returns the pod(s) of the deployment. The fetch is done by label selector (app=<deployment name>)
+// If the get request fails, the test will fail and the framework will be cleaned up
+func (f *Framework) GetPods(t *testing.T, d appsv1.Deployment) *corev1.PodList {
+	pods, err := f.k8s.CoreV1().Pods("test-cases").List(context.Background(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app=%s", d.Name),
+	})
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+	return pods
+}
+
 // CreateDeployment creates a deployment in the testing namespace
 func (f *Framework) CreateDeployment(t testing.TB, d appsv1.Deployment) {
 	_, err := f.k8s.AppsV1().Deployments("test-cases").Create(context.Background(), &d, metav1.CreateOptions{})
@@ -124,6 +137,17 @@ func (f *Framework) CreateDeployment(t testing.TB, d appsv1.Deployment) {
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
+}
+
+// CreateSecret creates a secret in the testing namespace
+func (f *Framework) CreateSecret(t *testing.T, secret corev1.Secret) {
+	t.Logf("creating secret %s", secret.Name)
+	s, err := f.k8s.CoreV1().Secrets("test-cases").Create(context.Background(), &secret, metav1.CreateOptions{})
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+	t.Logf("created secret %s", s.Name)
 }
 
 // WaitForDeployment waits until the deployment is ready
@@ -161,15 +185,33 @@ func (f *Framework) WaitForDeployment(t *testing.T, d appsv1.Deployment) {
 	}
 }
 
-// CreateSecret creates a secret in the testing namespace
-func (f *Framework) CreateSecret(t *testing.T, secret corev1.Secret) {
-	t.Logf("creating secret %s", secret.Name)
-	s, err := f.k8s.CoreV1().Secrets("test-cases").Create(context.Background(), &secret, metav1.CreateOptions{})
+// waitForReplicaSetCreation waits for the replicaset of the given deployment to be created
+func (f *Framework) waitForReplicaSetCreation(t *testing.T, d appsv1.Deployment) (string, error) {
+	rs, err := f.k8s.AppsV1().ReplicaSets("test-cases").Watch(context.Background(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app=%s", d.Name),
+	})
 	if err != nil {
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
-	t.Logf("created secret %s", s.Name)
+
+	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
+	defer done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			f.Cleanup(t)
+			t.Fatal("timeout reached while waiting for replicaset to be created")
+		case event := <-rs.ResultChan():
+			rs, ok := event.Object.(*appsv1.ReplicaSet)
+			if ok {
+				t.Logf("replicaset %s created", rs.Name)
+				return rs.Name, nil
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
 }
 
 // AssertDeploymentFailed asserts that the deployment cannot start
@@ -249,45 +291,4 @@ func (f *Framework) AssertEventForPod(t *testing.T, reason string, p corev1.Pod)
 			time.Sleep(5 * time.Second)
 		}
 	}
-}
-
-func (f *Framework) waitForReplicaSetCreation(t *testing.T, d appsv1.Deployment) (string, error) {
-	rs, err := f.k8s.AppsV1().ReplicaSets("test-cases").Watch(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", d.Name),
-	})
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-
-	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
-	defer done()
-
-	for {
-		select {
-		case <-ctx.Done():
-			f.Cleanup(t)
-			t.Fatal("timeout reached while waiting for replicaset to be created")
-		case event := <-rs.ResultChan():
-			rs, ok := event.Object.(*appsv1.ReplicaSet)
-			if ok {
-				t.Logf("replicaset %s created", rs.Name)
-				return rs.Name, nil
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}
-}
-
-// GetPods returns the pod(s) of the deployment. The fetch is done by label selector (app=<deployment name>)
-// If the get request fails, the test will fail and the framework will be cleaned up
-func (f *Framework) GetPods(t *testing.T, d appsv1.Deployment) *corev1.PodList {
-	pods, err := f.k8s.CoreV1().Pods("test-cases").List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", d.Name),
-	})
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-	return pods
 }
