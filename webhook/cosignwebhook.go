@@ -40,10 +40,11 @@ import (
 )
 
 const (
-	admissionApi  = "admission.k8s.io/v1"
-	admissionKind = "AdmissionReview"
-	CosignEnvVar  = "COSIGNPUBKEY"
-	k8sTimeout    = 10 * time.Second
+	admissionApi           = "admission.k8s.io/v1"
+	admissionKind          = "AdmissionReview"
+	CosignEnvVar           = "COSIGNPUBKEY"
+	CosignRepositoryEnvVar = "COSIGN_REPOSITORY"
+	k8sTimeout             = 10 * time.Second
 )
 
 var (
@@ -342,7 +343,19 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 	}
 
 	// Verify signature on remote image with the presented public key
-	remoteOpts := []ociremote.Option{ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc))}
+	remoteOpts := []ociremote.Option{
+		ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc)),
+	}
+	if r := getCosignRepository(c.Env); r != "" {
+		repository, repErr := name.NewRepository(r)
+		if repErr != nil {
+			log.Errorf("Error parsing remote signature repository: %v", repErr)
+			return fmt.Errorf("could not parse signature repository %q", r)
+		}
+		log.Debugf("Remote signature repository overridden with: %v", repository)
+		remoteOpts = append(remoteOpts, ociremote.WithTargetRepository(repository))
+	}
+
 	log.Debugf("Verifying image %q with public key %q", image, pubKey)
 	_, _, err = cosign.VerifyImageSignatures(
 		context.Background(),
@@ -354,16 +367,25 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 			IgnoreTlog:         true,
 		})
 
-	// Verify Image failed, needs to reject container start
 	if err != nil {
 		log.Errorf("Error verifying signature: %v", err)
 		return fmt.Errorf("signature for %q couldn't be verified", image)
 	}
 
-	// count successful verifies for prometheus metric
 	verifiedProcessed.Inc()
 	log.Infof("Image %q verified successfully", image)
 	return nil
+}
+
+// getCosignRepository returns the repository specified by the COSIGN_REPOSITORY environment variable
+// of the container, or nil if not set.
+func getCosignRepository(env []corev1.EnvVar) string {
+	for _, e := range env {
+		if e.Name == CosignRepositoryEnvVar {
+			return e.Value
+		}
+	}
+	return ""
 }
 
 // deny prevents the container from starting
