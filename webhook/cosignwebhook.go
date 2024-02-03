@@ -258,6 +258,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	csh.recordNoVerification(pod)
 }
 
+// newKeychainForPod builds a new Keychain for the pod
 func newKeychainForPod(ctx context.Context, pod *corev1.Pod) (authn.Keychain, error) {
 	imagePullSecrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
 	for _, s := range pod.Spec.ImagePullSecrets {
