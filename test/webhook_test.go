@@ -704,7 +704,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 	_, _ = fw.CreateKeys(t, "test")
 	_, other := fw.CreateKeys(t, "other")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "other",
+		KeyName: "test",
 		Image:   "k3d-registry.localhost:5000/busybox:first",
 	})
 

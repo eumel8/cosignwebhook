@@ -192,13 +192,15 @@ func (f *Framework) AssertDeploymentFailed(t *testing.T, d appsv1.Deployment) {
 		t.Fatal(err)
 	}
 
-	timeout := time.After(30 * time.Second)
-	for event := range w.ResultChan() {
+	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
+	defer done()
+
+	for {
 		select {
-		case <-timeout:
+		case <-ctx.Done():
 			f.Cleanup(t)
 			t.Fatal("timeout reached while waiting for deployment to fail")
-		default:
+		case event := <-w.ResultChan():
 			e, ok := event.Object.(*corev1.Event)
 			if !ok {
 				time.Sleep(5 * time.Second)
@@ -226,13 +228,15 @@ func (f *Framework) AssertEventForPod(t *testing.T, reason string, p corev1.Pod)
 		t.Fatal(err)
 	}
 
-	timeout := time.After(30 * time.Second)
-	for event := range w.ResultChan() {
+	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
+	defer done()
+
+	for {
 		select {
-		case <-timeout:
+		case <-ctx.Done():
 			f.Cleanup(t)
 			t.Fatal("timeout reached while waiting for podverified event")
-		default:
+		case event := <-w.ResultChan():
 			e, ok := event.Object.(*corev1.Event)
 			if !ok {
 				time.Sleep(5 * time.Second)
@@ -256,12 +260,15 @@ func (f *Framework) waitForReplicaSetCreation(t *testing.T, d appsv1.Deployment)
 		t.Fatal(err)
 	}
 
-	timeout := time.After(30 * time.Second)
-	for event := range rs.ResultChan() {
+	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
+	defer done()
+
+	for {
 		select {
-		case <-timeout:
-			return "", fmt.Errorf("timeout reached while waiting for replicaset to be created")
-		default:
+		case <-ctx.Done():
+			f.Cleanup(t)
+			t.Fatal("timeout reached while waiting for replicaset to be created")
+		case event := <-rs.ResultChan():
 			rs, ok := event.Object.(*appsv1.ReplicaSet)
 			if ok {
 				t.Logf("replicaset %s created", rs.Name)
@@ -270,7 +277,6 @@ func (f *Framework) waitForReplicaSetCreation(t *testing.T, d appsv1.Deployment)
 			time.Sleep(5 * time.Second)
 		}
 	}
-	return "", fmt.Errorf("failed to wait for replicaset creation")
 }
 
 // GetPods returns the pod(s) of the deployment. The fetch is done by label selector (app=<deployment name>)

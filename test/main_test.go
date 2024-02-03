@@ -7,15 +7,15 @@ import (
 // TestPassingDeployments tests deployments that should pass signature verification
 func TestPassingDeployments(t *testing.T) {
 	testFuncs := map[string]func(t *testing.T){
-		//"OneContainerSinglePubKeyEnvRef":            testOneContainerSinglePubKeyEnvRef,
-		//"TwoContainersSinglePubKeyEnvRef":           testTwoContainersSinglePubKeyEnvRef,
-		//"OneContainerSinglePubKeySecretRef":         testOneContainerSinglePubKeySecretRef,
-		//"TwoContainersSinglePubKeyMixedRef":         testTwoContainersSinglePubKeyMixedRef,
-		//"TwoContainersMixedPubKeyMixedRef":          testTwoContainersMixedPubKeyMixedRef,
-		//"TwoContainersSingleWithInitPubKeyMixedRef": testTwoContainersWithInitSinglePubKeyMixedRef,
-		//"EventEmittedOnSignatureVerification":       testEventEmittedOnSignatureVerification,
-		//"EventEmittedOnNoSignatureVerification":     testEventEmittedOnNoSignatureVerification,
-		"OneContainerWIthCosignRepository": testOneContainerWithCosignRepository,
+		"OneContainerSinglePubKeyEnvRef":            testOneContainerSinglePubKeyEnvRef,
+		"TwoContainersSinglePubKeyEnvRef":           testTwoContainersSinglePubKeyEnvRef,
+		"OneContainerSinglePubKeySecretRef":         testOneContainerSinglePubKeySecretRef,
+		"TwoContainersSinglePubKeyMixedRef":         testTwoContainersSinglePubKeyMixedRef,
+		"TwoContainersMixedPubKeyMixedRef":          testTwoContainersMixedPubKeyMixedRef,
+		"TwoContainersSingleWithInitPubKeyMixedRef": testTwoContainersWithInitSinglePubKeyMixedRef,
+		"EventEmittedOnSignatureVerification":       testEventEmittedOnSignatureVerification,
+		"EventEmittedOnNoSignatureVerification":     testEventEmittedOnNoSignatureVerification,
+		"OneContainerWIthCosignRepository":          testOneContainerWithCosignRepository,
 	}
 
 	for name, tf := range testFuncs {
