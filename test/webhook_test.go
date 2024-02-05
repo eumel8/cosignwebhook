@@ -1,12 +1,13 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/eumel8/cosignwebhook/test/framework"
 	"github.com/eumel8/cosignwebhook/webhook"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 // terminationGracePeriodSeconds is the termination grace period for the test deployments
@@ -26,22 +27,22 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 	// create a deployment with a single signed container and a public key provided via an environment variable
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-1",
+			Name:      "one-container-env-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-1"},
+				MatchLabels: map[string]string{"app": "one-container-env-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-1"},
+					Labels: map[string]string{"app": "one-container-env-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-1",
+							Name:  "one-container-env-ref",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -69,7 +70,6 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 // testTwoContainersSinglePubKeyEnvRef tests that a deployment with two signed containers,
 // with a public key provided via an environment variable, succeeds.
 func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -82,22 +82,22 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 	// create a deployment with two signed containers and a public key provided via an environment variable
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-2",
+			Name:      "two-containers-same-pub-key-env-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-2"},
+				MatchLabels: map[string]string{"app": "two-containers-same-pub-key-env-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-2"},
+					Labels: map[string]string{"app": "two-containers-same-pub-key-env-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-2-first",
+							Name:  "two-containers-same-pub-key-env-ref-first",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -112,7 +112,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 							},
 						},
 						{
-							Name:  "test-case-2-second",
+							Name:  "two-containers-same-pub-key-env-ref-second",
 							Image: "k3d-registry.localhost:5000/busybox:second",
 							Command: []string{
 								"sh",
@@ -140,7 +140,6 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 // testOneContainerPubKeySecret tests that a deployment with a single signed container,
 // with a public key provided via a secret, succeeds.
 func testOneContainerSinglePubKeySecretRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +151,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 	// create a secret with the public key
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-3",
+			Name:      "one-container-secret-ref",
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
@@ -163,22 +162,22 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 	// create a deployment with a single signed container and a public key provided via a secret
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-3",
+			Name:      "one-container-secret-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-3"},
+				MatchLabels: map[string]string{"app": "one-container-secret-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-3"},
+					Labels: map[string]string{"app": "one-container-secret-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-3",
+							Name:  "one-container-secret-ref",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -192,7 +191,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 										SecretKeyRef: &corev1.SecretKeySelector{
 											Key: "cosign.pub",
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "test-case-3",
+												Name: "one-container-secret-ref",
 											},
 										},
 									},
@@ -227,7 +226,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	// create a secret with the public key
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-4",
+			Name:      "two-containers-mixed-pub-keyrefs",
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
@@ -238,22 +237,22 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	// create a deployment with two signed containers and a public key provided via a secret
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-4",
+			Name:      "two-containers-mixed-pub-keyrefs",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-4"},
+				MatchLabels: map[string]string{"app": "two-containers-mixed-pub-keyrefs"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-4"},
+					Labels: map[string]string{"app": "two-containers-mixed-pub-keyrefs"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-4-first",
+							Name:  "two-containers-mixed-pub-keyrefs-first",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -267,7 +266,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 										SecretKeyRef: &corev1.SecretKeySelector{
 											Key: "cosign.pub",
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "test-case-4",
+												Name: "two-containers-mixed-pub-keyrefs",
 											},
 										},
 									},
@@ -275,7 +274,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 							},
 						},
 						{
-							Name:  "test-case-4-second",
+							Name:  "two-containers-mixed-pub-keyrefs-second",
 							Image: "k3d-registry.localhost:5000/busybox:second",
 							Command: []string{
 								"sh",
@@ -299,13 +298,11 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testTwoContainersSinglePubKeyMixedRef tests that a deployment with two signed containers,
 // with a public key provided via a secret and an environment variable, succeeds.
 func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -318,7 +315,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	// create a secret with the public key
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-5",
+			Name:      "two-containers-onekey-mixed-ref",
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
@@ -329,22 +326,22 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	// create a deployment with two signed containers and a public key provided via a secret
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-5",
+			Name:      "two-containers-onekey-mixed-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-5"},
+				MatchLabels: map[string]string{"app": "two-containers-onekey-mixed-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-5"},
+					Labels: map[string]string{"app": "two-containers-onekey-mixed-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-5-first",
+							Name:  "two-containers-onekey-mixed-ref-first",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -358,7 +355,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 										SecretKeyRef: &corev1.SecretKeySelector{
 											Key: "cosign.pub",
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "test-case-5",
+												Name: "two-containers-onekey-mixed-ref",
 											},
 										},
 									},
@@ -366,7 +363,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 							},
 						},
 						{
-							Name:  "test-case-5-second",
+							Name:  "two-containers-onekey-mixed-ref-second",
 							Image: "k3d-registry.localhost:5000/busybox:second",
 							Command: []string{
 								"sh",
@@ -390,13 +387,11 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.WaitForDeployment(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testTwoContainersSinglePubKeyMixedRef tests that a deployment with two signed containers,
 // with a public key provided via a secret and an environment variable, succeeds.
 func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -409,7 +404,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 	// create a secret with the public key
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-6",
+			Name:      "two-containers-init-singlekey-mixed-ref",
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
@@ -420,22 +415,22 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 	// create a deployment with two signed containers and a public key provided via a secret
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-6",
+			Name:      "two-containers-init-singlekey-mixed-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-6"},
+				MatchLabels: map[string]string{"app": "two-containers-init-singlekey-mixed-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-6"},
+					Labels: map[string]string{"app": "two-containers-init-singlekey-mixed-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					InitContainers: []corev1.Container{
 						{
-							Name:  "test-case-6-first",
+							Name:  "two-containers-init-singlekey-mixed-ref-first",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -449,7 +444,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 										SecretKeyRef: &corev1.SecretKeySelector{
 											Key: "cosign.pub",
 											LocalObjectReference: corev1.LocalObjectReference{
-												Name: "test-case-6",
+												Name: "two-containers-init-singlekey-mixed-ref",
 											},
 										},
 									},
@@ -459,7 +454,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-6-second",
+							Name:  "two-containers-init-singlekey-mixed-ref-second",
 							Image: "k3d-registry.localhost:5000/busybox:second",
 							Command: []string{
 								"sh",
@@ -499,22 +494,22 @@ func testEventEmittedOnSignatureVerification(t *testing.T) {
 	// create a deployment with a single signed container and a public key provided via an environment variable
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-7",
+			Name:      "event-emitted-on-verify",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-7"},
+				MatchLabels: map[string]string{"app": "event-emitted-on-verify"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-7"},
+					Labels: map[string]string{"app": "event-emitted-on-verify"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "test-case-7",
+							Name:  "event-emitted-on-verify",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -550,22 +545,22 @@ func testEventEmittedOnNoSignatureVerification(t *testing.T) {
 	// create a deployment with a single unsigned container
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-case-8",
+			Name:      "event-emitted-on-no-verify-needed",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "test-case-8"},
+				MatchLabels: map[string]string{"app": "event-emitted-on-no-verify-needed"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "test-case-8"},
+					Labels: map[string]string{"app": "event-emitted-on-no-verify-needed"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:    "test-case-8",
+							Name:    "event-emitted-on-no-verify-needed",
 							Image:   "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{"sh", "-c", "echo 'hello world, i am tired and will sleep now, for a bit...'; sleep 60"},
 						},
@@ -585,7 +580,6 @@ func testEventEmittedOnNoSignatureVerification(t *testing.T) {
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, fails if the public key does not match the signature.
 func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -598,22 +592,22 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 	// create a deployment with a single signed container and a public key provided via an environment variable
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fail-case-1",
+			Name:      "no-match-env-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "fail-case-1"},
+				MatchLabels: map[string]string{"app": "no-match-env-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "fail-case-1"},
+					Labels: map[string]string{"app": "no-match-env-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "fail-case-1",
+							Name:  "no-match-env-ref",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -636,13 +630,11 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testTwoContainersSinglePubKeyNoMatchEnvRef tests that a deployment with two signed containers,
 // with a public key provided via an environment variable, fails if one of the container's pub key is malformed.
 func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
-
 	fw, err := framework.New()
 	if err != nil {
 		t.Fatal(err)
@@ -654,22 +646,22 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 	// create a deployment with two signed containers and a public key provided via an environment variable
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fail-case-2",
+			Name:      "malformed-env-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "fail-case-2"},
+				MatchLabels: map[string]string{"app": "malformed-env-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "fail-case-2"},
+					Labels: map[string]string{"app": "malformed-env-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "fail-case-2-first",
+							Name:  "malformed-env-ref-first",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -684,7 +676,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 							},
 						},
 						{
-							Name:  "fail-case-2-second",
+							Name:  "malformed-env-ref-second",
 							Image: "k3d-registry.localhost:5000/busybox:second",
 							Command: []string{
 								"sh",
@@ -707,7 +699,6 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
-
 }
 
 // testOneContainerSinglePubKeyMalformedEnvRef tests that a deployment with a single signed container,
@@ -720,22 +711,22 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fail-case-3",
+			Name:      "single-malformed-env-ref",
 			Namespace: "test-cases",
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "fail-case-3"},
+				MatchLabels: map[string]string{"app": "single-malformed-env-ref"},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "fail-case-3"},
+					Labels: map[string]string{"app": "single-malformed-env-ref"},
 				},
 				Spec: corev1.PodSpec{
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "fail-case-3",
+							Name:  "single-malformed-env-ref",
 							Image: "k3d-registry.localhost:5000/busybox:first",
 							Command: []string{
 								"sh",
@@ -758,5 +749,58 @@ func testOneContainerSinglePubKeyMalformedEnvRef(t *testing.T) {
 	fw.CreateDeployment(t, depl)
 	fw.AssertDeploymentFailed(t, depl)
 	fw.Cleanup(t)
+}
 
+// testOneContainerSinglePubKeyNoMatchSecretRef tests that a deployment with a single signed container,
+// with a public key provided via a secret, fails if the public key does not match the signature, which
+// is uploaded in a different repository as the image itself
+func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, pub := fw.CreateKeys(t, "test")
+	t.Setenv("COSIGN_REPOSITORY", "k3d-registry.localhost:5000/sigs")
+	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "one-container-with-cosign-repo-missing",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "one-container-with-cosign-repo-missing"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "one-container-with-cosign-repo-missing"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "one-container-with-cosign-repo-missing",
+							Image: "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{
+								"sh", "-c",
+								"echo 'hello world, i can't start because I'm missing an env var...'; sleep 60",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: pub,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.AssertDeploymentFailed(t, depl)
+	fw.Cleanup(t)
 }

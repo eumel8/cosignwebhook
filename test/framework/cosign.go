@@ -2,15 +2,15 @@ package framework
 
 import (
 	"fmt"
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli"
 	"os"
 	"regexp"
 	"testing"
+
+	"github.com/sigstore/cosign/v2/cmd/cosign/cli"
 )
 
 // cleanupKeys removes all keypair files from the testing directory
 func cleanupKeys(t testing.TB) {
-
 	t.Logf("cleaning up keypair files")
 	files, err := os.ReadDir(".")
 	if err != nil {
@@ -33,7 +33,7 @@ func cleanupKeys(t testing.TB) {
 }
 
 // CreateKeys creates a signing keypair for cosing with the provided name
-func (f *Framework) CreateKeys(t testing.TB, name string) (string, string) {
+func (f *Framework) CreateKeys(t testing.TB, name string) (private string, public string) {
 	args := []string{fmt.Sprintf("--output-key-prefix=%s", name)}
 	err := os.Setenv("COSIGN_PASSWORD", "")
 	if err != nil {
@@ -87,5 +87,6 @@ func (f *Framework) SignContainer(t *testing.T, priv, img string) {
 	err := cmd.Execute()
 	if err != nil {
 		f.Cleanup(t)
+		t.Fatal(err)
 	}
 }

@@ -9,9 +9,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	log "github.com/gookit/slog"
 
 	"github.com/eumel8/cosignwebhook/webhook"
-	log "github.com/gookit/slog"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -53,16 +55,21 @@ func main() {
 
 	certs, err := tls.LoadX509KeyPair(tlscert, tlskey)
 	if err != nil {
-		log.Errorf("Failed to load key pair: ", err)
+		log.Errorf("failed to load key pair: %v", err)
 	}
 
 	server := &http.Server{
-		Addr:      fmt.Sprintf(":%v", port),
-		TLSConfig: &tls.Config{Certificates: []tls.Certificate{certs}},
+		Addr: fmt.Sprintf(":%v", port),
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{certs},
+			MinVersion:   tls.VersionTLS12,
+		},
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	mserver := &http.Server{
-		Addr: fmt.Sprintf(":%v", mport),
+		Addr:              fmt.Sprintf(":%v", mport),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// define http server and server handler
@@ -76,19 +83,18 @@ func main() {
 	mmux.Handle("/metrics", promhttp.Handler())
 	mserver.Handler = mmux
 
-	// start webhook server in new rountine
 	go func() {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			log.Errorf("Failed to listen and serve webhook server %v", err)
+			log.Errorf("Failed to listen and serve webhook server: %v", err)
 		}
 	}()
 	go func() {
 		if err := mserver.ListenAndServe(); err != nil {
-			log.Errorf("Failed to listen and serve monitor server %v", err)
+			log.Errorf("Failed to listen and serve monitor server: %v", err)
 		}
 	}()
 
-	log.Infof("Server running listening in port: %s,%s", port, mport)
+	log.Info("Webhook server running", "port", port, "metricsPort", mport)
 
 	// listening shutdown signal
 	signalChan := make(chan os.Signal, 1)
@@ -96,6 +102,6 @@ func main() {
 	<-signalChan
 
 	log.Info("Got shutdown signal, shutting down webhook server gracefully...")
-	server.Shutdown(context.Background())
-	mserver.Shutdown(context.Background())
+	_ = server.Shutdown(context.Background())
+	_ = mserver.Shutdown(context.Background())
 }

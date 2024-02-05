@@ -6,7 +6,6 @@ import (
 
 // TestPassingDeployments tests deployments that should pass signature verification
 func TestPassingDeployments(t *testing.T) {
-
 	testFuncs := map[string]func(t *testing.T){
 		"OneContainerSinglePubKeyEnvRef":            testOneContainerSinglePubKeyEnvRef,
 		"TwoContainersSinglePubKeyEnvRef":           testTwoContainersSinglePubKeyEnvRef,
@@ -25,11 +24,11 @@ func TestPassingDeployments(t *testing.T) {
 
 // TestFailingDeployments tests deployments that should fail signature verification
 func TestFailingDeployments(t *testing.T) {
-
 	testFuncs := map[string]func(t *testing.T){
-		"OneContainerSinglePubKeyMalformedEnvRef":  testOneContainerSinglePubKeyMalformedEnvRef,
-		"TwoContainersSinglePubKeyMalformedEnvRef": testTwoContainersSinglePubKeyMalformedEnvRef,
-		"OneContainerSinglePubKeyNoMatchEnvRef":    testOneContainerSinglePubKeyNoMatchEnvRef,
+		"OneContainerSinglePubKeyMalformedEnvRef":   testOneContainerSinglePubKeyMalformedEnvRef,
+		"TwoContainersSinglePubKeyMalformedEnvRef":  testTwoContainersSinglePubKeyMalformedEnvRef,
+		"OneContainerSinglePubKeyNoMatchEnvRef":     testOneContainerSinglePubKeyNoMatchEnvRef,
+		"OneContainerWithCosingRepoVariableMissing": testOneContainerWithCosingRepoVariableMissing,
 	}
 
 	for name, tf := range testFuncs {
