@@ -101,17 +101,17 @@ kind: Secret
 data:
   COSIGNPUBKEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFS1BhWUhnZEVEQ3ltcGx5emlIdkJ5UjNxRkhZdgppaWxlMCtFMEtzVzFqWkhJa1p4UWN3aGsySjNqSm5VdTdmcjcrd05DeENkVEdYQmhBSTJveE1LbWx3PT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t
 metadata:
-  name: cosignwebhook
+  name: cosign_secret # Can be choosen freely
 type: Opaque
 ```
 
 ```yaml
-env:
-  - name: COSIGNPUBKEY
-    valueFrom:
-      secretKeyRef:
-        name: cosignwebhook
-        key: COSIGNPUBKEY
+        env:
+          - name: COSIGNPUBKEY
+            valueFrom:
+              secretKeyRef:
+                name: cosign_secret # Must be equal to metadata.name of the secrect
+                key: COSIGNPUBKEY
 ```
 
 ### Public key as default secret for namespace
