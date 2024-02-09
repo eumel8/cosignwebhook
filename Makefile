@@ -6,12 +6,6 @@ test-e2e:
 	@echo "Running e2e tests..."
 	@go test -v -race -count 1 ./test/
 
-test-cleanup:
-	@echo "Cleaning up..."
-	@helm uninstall cosignwebhook -n cosignwebhook
-	@k3d registry delete k3d-registry.localhost
-	@k3d cluster delete cosign-tests
-
 .PHONY: test-unit
 test-unit:
 	@echo "Running unit tests..."

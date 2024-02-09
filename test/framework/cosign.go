@@ -59,14 +59,21 @@ func (f *Framework) CreateKeys(t testing.TB, name string) (private string, publi
 	return string(privateKey), string(pubKey)
 }
 
+// SignOptions is a struct to hold the options for signing a container
+type SignOptions struct {
+	KeyName       string
+	Image         string
+	SignatureRepo string
+}
+
 // SignContainer signs the container with the provided private key
-func (f *Framework) SignContainer(t *testing.T, priv, img string) {
+func (f *Framework) SignContainer(t *testing.T, opts SignOptions) {
 	// TODO: find a way to simplify this function - maybe use cosing CLI directly?
 	// get SHA of the container image
 	t.Setenv("COSIGN_PASSWORD", "")
 	args := []string{
 		"sign",
-		img,
+		opts.Image,
 	}
 	t.Setenv("COSIGN_PASSWORD", "")
 	cmd := cli.New()
@@ -80,7 +87,14 @@ func (f *Framework) SignContainer(t *testing.T, priv, img string) {
 			break
 		}
 	}
-	_ = cmd.Flags().Set("key", fmt.Sprintf("%s.key", priv))
+
+	// if the signature repository is different from the image, set the COSIGN_REPOSITORY environment variable
+	// to push the signature to the specified repository
+	if opts.SignatureRepo != opts.Image {
+		t.Setenv("COSIGN_REPOSITORY", opts.SignatureRepo)
+	}
+
+	_ = cmd.Flags().Set("key", fmt.Sprintf("%s.key", opts.KeyName))
 	_ = cmd.Flags().Set("tlog-upload", "false")
 	_ = cmd.Flags().Set("yes", "true")
 	_ = cmd.Flags().Set("allow-http-registry", "true")

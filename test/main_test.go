@@ -15,6 +15,7 @@ func TestPassingDeployments(t *testing.T) {
 		"TwoContainersSingleWithInitPubKeyMixedRef": testTwoContainersWithInitSinglePubKeyMixedRef,
 		"EventEmittedOnSignatureVerification":       testEventEmittedOnSignatureVerification,
 		"EventEmittedOnNoSignatureVerification":     testEventEmittedOnNoSignatureVerification,
+		"OneContainerWIthCosignRepository":          testOneContainerWithCosignRepository,
 	}
 
 	for name, tf := range testFuncs {

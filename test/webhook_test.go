@@ -22,7 +22,10 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
 
 	// create a deployment with a single signed container and a public key provided via an environment variable
 	depl := appsv1.Deployment{
@@ -76,8 +79,14 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:second")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:second",
+	})
 
 	// create a deployment with two signed containers and a public key provided via an environment variable
 	depl := appsv1.Deployment{
@@ -146,7 +155,10 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
 
 	// create a secret with the public key
 	secret := corev1.Secret{
@@ -220,8 +232,14 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 
 	_, pub1 := fw.CreateKeys(t, "test1")
 	_, pub2 := fw.CreateKeys(t, "test2")
-	fw.SignContainer(t, "test1", "k3d-registry.localhost:5000/busybox:first")
-	fw.SignContainer(t, "test2", "k3d-registry.localhost:5000/busybox:second")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test1",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test2",
+		Image:   "k3d-registry.localhost:5000/busybox:second",
+	})
 
 	// create a secret with the public key
 	secret := corev1.Secret{
@@ -309,8 +327,14 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:second")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:second",
+	})
 
 	// create a secret with the public key
 	secret := corev1.Secret{
@@ -398,8 +422,14 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:second")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:second",
+	})
 
 	// create a secret with the public key
 	secret := corev1.Secret{
@@ -489,7 +519,10 @@ func testEventEmittedOnSignatureVerification(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
 
 	// create a deployment with a single signed container and a public key provided via an environment variable
 	depl := appsv1.Deployment{
@@ -577,6 +610,89 @@ func testEventEmittedOnNoSignatureVerification(t *testing.T) {
 	fw.Cleanup(t)
 }
 
+// testOneContainerWithCosignRepository tests that a deployment with a single signed container,
+// with a public key provided via a secret succeeds.
+// The signature for the container is present in the repository
+// defined in the environment variables of the container.
+func testOneContainerWithCosignRepository(t *testing.T) {
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, pub := fw.CreateKeys(t, "test")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName:       "test",
+		Image:         "k3d-registry.localhost:5000/busybox:first",
+		SignatureRepo: "k3d-registry.localhost:5000/sigs",
+	})
+
+	// create a secret with the public key
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "one-container-cosign-repo",
+			Namespace: "test-cases",
+		},
+		StringData: map[string]string{
+			"cosign.pub": pub,
+		},
+	}
+
+	// create a deployment with a single signed container and a public key provided via a secret
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "one-container-cosign-repo",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "one-container-cosign-repo"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "one-container-cosign-repo"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "one-container-cosign-repo",
+							Image: "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name: webhook.CosignEnvVar,
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											Key: "cosign.pub",
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: "one-container-cosign-repo",
+											},
+										},
+									},
+								},
+								{
+									Name:  webhook.CosignRepositoryEnvVar,
+									Value: "k3d-registry.localhost:5000/sigs",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateSecret(t, secret)
+	fw.CreateDeployment(t, depl)
+	fw.WaitForDeployment(t, depl)
+	fw.Cleanup(t)
+}
+
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, fails if the public key does not match the signature.
 func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
@@ -587,7 +703,10 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 
 	_, _ = fw.CreateKeys(t, "test")
 	_, other := fw.CreateKeys(t, "other")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
 
 	// create a deployment with a single signed container and a public key provided via an environment variable
 	depl := appsv1.Deployment{
@@ -641,7 +760,10 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName: "test",
+		Image:   "k3d-registry.localhost:5000/busybox:first",
+	})
 
 	// create a deployment with two signed containers and a public key provided via an environment variable
 	depl := appsv1.Deployment{
@@ -761,8 +883,11 @@ func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
 	}
 
 	_, pub := fw.CreateKeys(t, "test")
-	t.Setenv("COSIGN_REPOSITORY", "k3d-registry.localhost:5000/sigs")
-	fw.SignContainer(t, "test", "k3d-registry.localhost:5000/busybox:first")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName:       "test",
+		Image:         "k3d-registry.localhost:5000/busybox:first",
+		SignatureRepo: "k3d-registry.localhost:5000/sigs",
+	})
 
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

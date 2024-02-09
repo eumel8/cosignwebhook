@@ -42,7 +42,8 @@ kubectl -n cosignwebhook apply -f manifests/rbac.yaml
 kubectl -n cosignwebhook apply -f manifests/manifest.yaml
 ```
 
-The manifest contains a self-signed example ca, TLS certificate, and key. This is only to see how it looks like, you should generate your own certificate, see below:
+The manifest contains a self-signed example ca, TLS certificate, and key. This is only to see how it looks like, you
+should generate your own certificate, see below:
 
 ## Cert generation
 
@@ -52,26 +53,44 @@ Run the generate-certs script in the `hack` folder to generate the TLS key pair 
 generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 ```
 
-# Usage
+## Validating your container images
 
-To use the webhook, you need to first sign your images with cosign, and then use **one** of the following validation
-possibilities:
+To use the webhook, you need to first sign your images with `cosign`, and then use **one** of the following validation
+possibilities.
 
-## Public key as environment variable
+- [Public key as environment variable](#public-key-as-environment-variable)
+- [Public key as secret reference](#public-key-as-secret-reference)
+- [Public key as default secret for namespace](#public-key-as-default-secret-for-namespace)
+
+Additionally, if the signature of the image you're trying to validate **is not** in the same repository as the image,
+you need to add the `COSIGN_REPOSITORY` environment variable to the environment of the container:
+
+```yaml
+# in the container spec of the workload
+env:
+  - name: COSIGN_REPOSITORY
+    value: myregistry.io/signatures
+```
+
+This option is similar to the `COSIGN_REPOSITORY` environment variable used with `cosign verify` and `cosign sign`
+command line tool and is used to specify the repository where the signature of the image is located, if it's not in the
+same repository as the image.
+
+### Public key as environment variable
 
 Add your Cosign public key as env var in container spec of the first container:
 
 ```yaml
-        env:
-          - name: COSIGNPUBKEY
-            value: |
-              -----BEGIN PUBLIC KEY-----
-              MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGOrnlJ1lFxAFTY2LF1vCuVHNZr9H
-              QryRDinn+JhPrDYR2wqCP+BUkeWja+RWrRdmskA0AffxBzaQrN/SwZI6fA==
-              -----END PUBLIC KEY-----
+env:
+  - name: COSIGNPUBKEY
+    value: |
+      -----BEGIN PUBLIC KEY-----
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGOrnlJ1lFxAFTY2LF1vCuVHNZr9H
+      QryRDinn+JhPrDYR2wqCP+BUkeWja+RWrRdmskA0AffxBzaQrN/SwZI6fA==
+      -----END PUBLIC KEY-----
 ```
 
-## Public key as secret reference
+### Public key as secret reference
 
 Instead of hardcoding the public key in the deployment, you can also use a secret reference. The key and the secret may
 be named freely, as long as the secret contains a valid public key.
@@ -95,7 +114,7 @@ type: Opaque
                 key: COSIGNPUBKEY
 ```
 
-## Public key as default secret for namespace
+### Public key as default secret for namespace
 
 Create a default secret for all your images in a namespace, which the webhook will always search for, when validating
 images in this namespace:
@@ -113,7 +132,9 @@ type: Opaque
 The name of the secret must be `cosignwebhook` and the key `COSIGNPUBKEY`. The value of `COSIGNPUBKEY` must match the
 public key used to sign the image you're deploying.
 
-# Test
+##     
+
+## Test
 
 To test the webhook, you may run the following command(s):
 
@@ -126,7 +147,7 @@ make e2e-prep
 make test-e2e
 ```
 
-## E2E tests
+### E2E tests
 
 The E2E tests require a running kubernetes cluster. Currently, the namespace and webhook are deployed via helper make
 targets. To run the tests the following is required:
@@ -142,15 +163,11 @@ To run the E2E tests, the following steps are required (in order):
 * the image is pushed to a local registry & deployed to the test cluster (`make e2e-deploy`)
 
 To do all of the above, simply run `make e2e-prep`. Each step should also be able to be executed individually. To clean
-up the E2E setup, run `make e2e-cleanup`. This will delete everything created by the E2E preparation.
+up the E2E setup, run `make e2e-cleanup`.
+This will delete everything created by the E2E preparation. If you've already created the cluster and the keys, and
+you're actively testing new code, you may run `make e2e-images e2e-deploy test-e2e` to test your changes.
 
-# TODO
-
-* [x] Support private images
-* [x] Support multiple container/keys
-* [ ] Support COSING_REPOSITORY
-
-# Local build
+## Local build
 
 ```bash
 CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignwebhook
