@@ -167,6 +167,7 @@ func (csh *CosignServerHandler) getSecretValue(namespace, secret, key string) (s
 	return string(value), nil
 }
 
+// Healthz is called by /healthz for health checks and returns 'ok' if http connection is ready
 func (csh *CosignServerHandler) Healthz(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("ok"))
@@ -176,6 +177,7 @@ func (csh *CosignServerHandler) Healthz(w http.ResponseWriter, _ *http.Request) 
 	}
 }
 
+// Serve the main function for /validate to validate the webhook request or /metrics to get Prometheus data
 func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	var body []byte
 	if r.Body != nil {
