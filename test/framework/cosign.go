@@ -1,6 +1,10 @@
 package framework
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"regexp"
@@ -57,6 +61,65 @@ func (f *Framework) CreateKeys(t testing.TB, name string) (private string, publi
 	}
 
 	return string(privateKey), string(pubKey)
+}
+
+// CreateRSAKeyPair creates an RSA keypair for signing with the provided name
+// The keypair is generated using openssl, as cosign doesn't support RSA keypairs
+func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string, public string) {
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+
+	privFile, err := os.Create(fmt.Sprintf("%s.key", name))
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+	defer func(privFile *os.File) {
+		_ = privFile.Close()
+	}(privFile)
+
+	privPEM := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(priv),
+	}
+
+	if err = pem.Encode(privFile, privPEM); err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+
+	// Generate and save the public key to a PEM file
+	pub := &priv.PublicKey
+	pubFile, err := os.Create(fmt.Sprintf("%s.pub", name))
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+	defer func(pubFile *os.File) {
+		_ = pubFile.Close()
+	}(pubFile)
+
+	pubASN1, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+
+	publicKeyPEM := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubASN1,
+	}
+
+	if err = pem.Encode(pubFile, publicKeyPEM); err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+
+	return string(privPEM.Bytes), string(publicKeyPEM.Bytes)
 }
 
 // SignOptions is a struct to hold the options for signing a container

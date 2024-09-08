@@ -51,8 +51,7 @@ func createClientSet() (k8sClient *kubernetes.Clientset, err error) {
 }
 
 // Cleanup removes all resources created by the framework
-// and cleans up the testing directory. If an error is passed,
-// the test will fail but the cleanup will still be executed.
+// and cleans up the testing directory.
 func (f *Framework) Cleanup(t testing.TB) {
 	cleanupKeys(t)
 	f.cleanupDeployments(t)
