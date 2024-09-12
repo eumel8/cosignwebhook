@@ -22,6 +22,7 @@ const (
 	port        = "8080"
 	mport       = "8081"
 	logTemplate = "[{{datetime}}] [{{level}}] {{caller}} {{message}} \n"
+	timeout     = 10 * time.Second
 )
 
 var tlscert, tlskey string
@@ -64,12 +65,12 @@ func main() {
 			Certificates: []tls.Certificate{certs},
 			MinVersion:   tls.VersionTLS12,
 		},
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadHeaderTimeout: timeout,
 	}
 
 	mserver := &http.Server{
 		Addr:              fmt.Sprintf(":%v", mport),
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadHeaderTimeout: timeout,
 	}
 
 	// define http server and server handler

@@ -23,8 +23,8 @@ linters-settings:
     min-complexity: 15
   gofmt:
     rewrite-rules:
-      - pattern: 'interface{}'
-        replacement: 'any'
+      - pattern: "interface{}"
+        replacement: "any"
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
   gomnd:
@@ -35,15 +35,14 @@ linters-settings:
       - condition
       - return
     ignored-numbers:
-      - '0'
-      - '1'
-      - '2'
-      - '3'
+      - "0"
+      - "1"
+      - "2"
+      - "3"
     ignored-functions:
       - strings.SplitN
 
   govet:
-    check-shadowing: true
     settings:
       printf:
         funcs:
@@ -72,7 +71,7 @@ linters:
     - dogsled
     - dupl
     - errcheck
-    - exportloopref
+    - copyloopvar
     - funlen
     - gocheckcompilerdirectives
     - gochecknoinits
@@ -81,7 +80,7 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - gomnd
+    - mnd
     - goprintffuncname
     - gosec
     - gosimple
@@ -99,9 +98,8 @@ linters:
     - unused
     - whitespace
 
-run:
-  timeout: 5m
-  skip-files:
+issues:
+  exclude-files:
     - .*_test\.go
-  skip-dirs:
+  exclude-dirs:
     - test/

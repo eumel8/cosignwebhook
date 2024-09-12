@@ -19,7 +19,7 @@ e2e-cluster:
 	@echo "Creating registry..."
 	@k3d registry create registry.localhost --port 13942
 	@echo "Adding registry to cluster..."
-	@K3D_FIX_DNS=0 k3d cluster create cosign-tests --registry-use k3d-registry.localhost:13942
+	@k3d cluster create cosign-tests --registry-use k3d-registry.localhost:13942
 	@echo "Create test namespace..."
 	@kubectl create namespace test-cases
 
@@ -59,13 +59,14 @@ e2e-deploy:
 		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
 		--set logLevel=debug \
-		--wait --debug
+		--wait --debug --atomic
 
 e2e-prep: e2e-cluster e2e-keys e2e-images e2e-deploy
 
 e2e-cleanup:
-	@echo "Cleaning up..."
-	@k3d registry delete k3d-registry.localhost
-	@k3d cluster delete cosign-tests
-	@helm uninstall cosignwebhook -n cosignwebhook
-	@rm -f cosign.pub cosign.key second.pub second.key
+	@echo "Cleaning up test env..."
+	@k3d registry delete k3d-registry || echo "Deleting k3d registry failed. Continuing..."
+	@helm uninstall cosignwebhook -n cosignwebhook || echo "Uninstalling cosignwebhook helm release failed. Continuing..."
+	@k3d cluster delete cosign-tests || echo "Deleting cosign tests k3d cluster failed. Continuing..."
+	@rm -f cosign.pub cosign.key second.pub second.key || echo "Removing files failed. Continuing..."
+	@echo "Done."

@@ -6,7 +6,6 @@ import (
 )
 
 func TestFramework_CreateRSAKeyPair(t *testing.T) {
-
 	tests := []struct {
 		name string
 	}{
@@ -16,7 +15,6 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			f := &Framework{}
 			priv, pub := f.CreateRSAKeyPair(t, tt.name)
 

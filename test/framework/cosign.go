@@ -64,9 +64,7 @@ func (f *Framework) CreateKeys(t testing.TB, name string) (private string, publi
 }
 
 // CreateRSAKeyPair creates an RSA keypair for signing with the provided name
-// The keypair is generated using openssl, as cosign doesn't support RSA keypairs
 func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string, public string) {
-
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		f.Cleanup(t)

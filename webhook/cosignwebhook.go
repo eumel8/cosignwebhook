@@ -368,7 +368,6 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 			IgnoreSCT:          true,
 			IgnoreTlog:         true,
 		})
-
 	if err != nil {
 		log.Errorf("Error verifying signature: %v", err)
 		return fmt.Errorf("signature for %q couldn't be verified", image)

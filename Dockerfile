@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.21 AS build-env
+FROM golang:1.23 AS build-env
 WORKDIR /app
 COPY  . /app
 RUN useradd -u 10001 webhook && \

@@ -32,7 +32,7 @@ podAnnotations: {}
 podSecurityContext:
   fsGroup: 1000
   supplementalGroups:
-  - 1000
+    - 1000
 
 # minimal permissions for container
 securityContext:
@@ -40,7 +40,7 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-    - ALL
+      - ALL
   privileged: false
   runAsUser: 1000
   runAsGroup: 1000
@@ -103,17 +103,17 @@ affinity: {}
 cosign:
   image:
     repository: ghcr.io/sigstore/cosign/cosign
-    tag: v2.0.0
+    tag: v2.4.0
     pullPolicy: IfNotPresent
   sccosign:
     key: |
-        -----BEGIN PUBLIC KEY-----
-        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhyQCx0E9wQWSFI9ULGwy3BuRklnt
-        IqozONbbdbqz11hlRJy9c7SG+hdcFl9jE9uE/dwtuwU2MqU9T/cN0YkWww==
-        -----END PUBLIC KEY-----
+      -----BEGIN PUBLIC KEY-----
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhyQCx0E9wQWSFI9ULGwy3BuRklnt
+      IqozONbbdbqz11hlRJy9c7SG+hdcFl9jE9uE/dwtuwU2MqU9T/cN0YkWww==
+      -----END PUBLIC KEY-----
   scwebhook:
     key: |
-        -----BEGIN PUBLIC KEY-----
-        MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENDN3HpXY2weMYRuuJbZnNczrOyns
-        ZvVnR15G9EILCH8+elXkYy+4U70mR++XIL0iD8NhZ3kxfpFjxyHlnG5Snw==
-        -----END PUBLIC KEY-----
+      -----BEGIN PUBLIC KEY-----
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENDN3HpXY2weMYRuuJbZnNczrOyns
+      ZvVnR15G9EILCH8+elXkYy+4U70mR++XIL0iD8NhZ3kxfpFjxyHlnG5Snw==
+      -----END PUBLIC KEY-----
