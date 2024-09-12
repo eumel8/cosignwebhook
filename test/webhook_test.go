@@ -750,6 +750,80 @@ func testOneContainerSinglePubKeyEnvRefRSA(t *testing.T) {
 	fw.Cleanup(t)
 }
 
+func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
+	fw, err := framework.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a deployment with two containers signed by the same RSA key
+	_, rsaPub := fw.CreateRSAKeyPair(t, "test")
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName:       "test",
+		Image:         "k3d-registry.localhost:5000/busybox:first",
+		SignatureRepo: "k3d-registry.localhost:5000/sigs",
+	})
+	fw.SignContainer(t, framework.SignOptions{
+		KeyName:       "test",
+		Image:         "k3d-registry.localhost:5000/busybox:second",
+		SignatureRepo: "k3d-registry.localhost:5000/sigs",
+	})
+
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "two-containers-single-pubkey-envref",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "two-containers-single-pubkey-envref"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "two-containers-single-pubkey-envref"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "two-containers-single-pubkey-envref",
+							Image: "k3d-registry.localhost:5000/busybox:first",
+							Command: []string{
+								"sh", "-c",
+								"echo 'hello world, i am tired and will sleep now'; sleep 60",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: rsaPub,
+								},
+							},
+						},
+						{
+							Name:  "two-containers-single-pubkey-envref",
+							Image: "k3d-registry.localhost:5000/busybox:second",
+							Command: []string{
+								"sh", "-c",
+								"echo 'hello world, i am tired and will sleep now'; sleep 60",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: rsaPub,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	fw.CreateDeployment(t, depl)
+	fw.WaitForDeployment(t, depl)
+	fw.Cleanup(t)
+}
+
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, fails if the public key does not match the signature.
 func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {

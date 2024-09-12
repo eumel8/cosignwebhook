@@ -32,7 +32,7 @@ podAnnotations: {}
 podSecurityContext:
   fsGroup: 1000
   supplementalGroups:
-    - 1000
+  - 1000
 
 # minimal permissions for container
 securityContext:
@@ -40,7 +40,7 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-      - ALL
+    - ALL
   privileged: false
   runAsUser: 1000
   runAsGroup: 1000

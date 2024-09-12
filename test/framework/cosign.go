@@ -136,7 +136,6 @@ func (f *Framework) SignContainer(t *testing.T, opts SignOptions) {
 		"sign",
 		opts.Image,
 	}
-	t.Setenv("COSIGN_PASSWORD", "")
 	cmd := cli.New()
 	_ = cmd.Flags().Set("timeout", "30s")
 	cmd.SetArgs(args)
