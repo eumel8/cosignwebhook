@@ -337,15 +337,11 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 		return fmt.Errorf("public key for image %q malformed", image)
 	}
 
-	// depending on key algorithm, we need to load the key differently
-	// currently only ECDSA and RSA are supported
-	// Load public key to verify
 	verifier, err := csh.newVerifierForKey(publicKey)
 	if err != nil {
 		return err
 	}
 
-	// Verify signature on remote image with the presented public key
 	remoteOpts := []ociremote.Option{
 		ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc)),
 	}
@@ -368,7 +364,8 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 			SigVerifier:        verifier,
 			IgnoreSCT:          true,
 			IgnoreTlog:         true,
-		})
+		},
+	)
 	if err != nil {
 		log.Errorf("Error verifying signature: %v", err)
 		return fmt.Errorf("signature for %q couldn't be verified", image)
