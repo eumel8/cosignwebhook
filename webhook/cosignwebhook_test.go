@@ -1,6 +1,11 @@
 package webhook
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -138,4 +143,68 @@ func Test_getPubKeyFromEnv(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCosignServerHandler_newVerifierForKey(t *testing.T) {
+	tests := []struct {
+		name    string
+		pubkey  crypto.PublicKey
+		wantErr bool
+	}{
+		{
+			name:   "success RSA",
+			pubkey: testRSAPubKey(t),
+		},
+		{
+			name:   "success ECDSA",
+			pubkey: testECDSAPubKey(t),
+		},
+		{
+			name:    "fail empty public key",
+			pubkey:  "",
+			wantErr: true,
+		},
+		{
+			name:    "fail: malformed key",
+			pubkey:  "i'm not a key!",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+
+		csh := &CosignServerHandler{}
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := csh.newVerifierForKey(tt.pubkey)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("verifySignature() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && got == nil {
+				t.Fatal("expected key to produce verifier")
+			}
+		})
+	}
+}
+
+// testECDSAPubKey creates an ECDSA keypair and returns the public key
+func testECDSAPubKey(t testing.TB) crypto.PublicKey {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Errorf("failed generating ECDSA key: %v", err)
+		return nil
+	}
+	return &key.PublicKey
+}
+
+// testRSAPubKey creates an RSA keypair and returns the public key
+func testRSAPubKey(t testing.TB) crypto.PublicKey {
+	key, err := rsa.GenerateKey(rand.Reader, 256)
+	if err != nil {
+		t.Errorf("failed generating RSA key: %v", err)
+		return nil
+	}
+
+	return &key.PublicKey
 }
