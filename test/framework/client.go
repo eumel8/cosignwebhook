@@ -61,6 +61,12 @@ func (f *Framework) Cleanup(t testing.TB) {
 // cleanupDeployments removes all deployments from the testing namespace
 // if they exist
 func (f *Framework) cleanupDeployments(t testing.TB) {
+
+	if f.k8s == nil {
+		t.Logf("k8s client is nil")
+		return
+	}
+
 	t.Logf("cleaning up deployments")
 	deployments, err := f.k8s.AppsV1().Deployments("test-cases").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
@@ -98,6 +104,12 @@ func (f *Framework) cleanupDeployments(t testing.TB) {
 
 // cleanupSecrets removes all secrets from the testing namespace
 func (f *Framework) cleanupSecrets(t testing.TB) {
+
+	if f.k8s == nil {
+		t.Logf("k8s client is nil")
+		return
+	}
+
 	t.Logf("cleaning up secrets")
 	secrets, err := f.k8s.CoreV1().Secrets("test-cases").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
