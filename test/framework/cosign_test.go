@@ -41,7 +41,6 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 			if err != nil || coPubStat.Size() == 0 {
 				t.Fatal("failed to create cosign public key")
 			}
-
 		})
 	}
 }
@@ -49,7 +48,6 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 // TestFramework_SignContainer_RSA generates an RSA keypair and signs a container image
 // with the private key. The key is generated using the CreateRSAKeyPair function.
 func TestFramework_SignContainer_RSA(t *testing.T) {
-
 	if os.Getenv("COSIGN_INTEGRATION") == "" {
 		t.Skip()
 	}

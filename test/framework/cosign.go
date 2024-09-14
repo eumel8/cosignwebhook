@@ -7,12 +7,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli/importkeypair"
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
 	"os"
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/sigstore/cosign/v2/cmd/cosign/cli/importkeypair"
+	"github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
 
 	"github.com/sigstore/cosign/v2/cmd/cosign/cli"
 	"github.com/sigstore/cosign/v2/cmd/cosign/cli/sign"
