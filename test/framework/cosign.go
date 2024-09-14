@@ -1,17 +1,24 @@
 package framework
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/sigstore/cosign/v2/cmd/cosign/cli/importkeypair"
+	"github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
 	"os"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/sigstore/cosign/v2/cmd/cosign/cli"
+	"github.com/sigstore/cosign/v2/cmd/cosign/cli/sign"
 )
+
+const ImportKeySuffix = "imported"
 
 // cleanupKeys removes all keypair files from the testing directory
 func cleanupKeys(t testing.TB) {
@@ -76,19 +83,15 @@ func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string,
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
-	defer func(privFile *os.File) {
-		_ = privFile.Close()
-	}(privFile)
-
-	privPEM := &pem.Block{
+	privBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(priv),
-	}
-
-	if err = pem.Encode(privFile, privPEM); err != nil {
+	})
+	if _, err = privFile.Write(privBytes); err != nil {
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
+	_ = privFile.Close()
 
 	// Generate and save the public key to a PEM file
 	pub := &priv.PublicKey
@@ -97,27 +100,29 @@ func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string,
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
-	defer func(pubFile *os.File) {
-		_ = pubFile.Close()
-	}(pubFile)
 
-	pubASN1, err := x509.MarshalPKIXPublicKey(pub)
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-
-	publicKeyPEM := &pem.Block{
+	pubASN1 := x509.MarshalPKCS1PublicKey(pub)
+	pubBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: pubASN1,
-	}
-
-	if err = pem.Encode(pubFile, publicKeyPEM); err != nil {
+	})
+	if _, err = pubFile.Write(pubBytes); err != nil {
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
+	_ = pubFile.Close()
 
-	return string(privPEM.Bytes), string(publicKeyPEM.Bytes)
+	t.Setenv("COSIGN_PASSWORD", "")
+	// import the keypair into cosign for signing
+	err = importkeypair.ImportKeyPairCmd(context.Background(), options.ImportKeyPairOptions{
+		Key:             fmt.Sprintf("%s.key", name),
+		OutputKeyPrefix: fmt.Sprintf("%s-%s", name, ImportKeySuffix),
+	}, []string{})
+	if err != nil {
+		return "", ""
+	}
+
+	return string(privBytes), string(pubBytes)
 }
 
 // SignOptions is a struct to hold the options for signing a container
@@ -129,36 +134,27 @@ type SignOptions struct {
 
 // SignContainer signs the container with the provided private key
 func (f *Framework) SignContainer(t *testing.T, opts SignOptions) {
-	// TODO: find a way to simplify this function - maybe use cosing CLI directly?
 	// get SHA of the container image
 	t.Setenv("COSIGN_PASSWORD", "")
-	args := []string{
-		"sign",
-		opts.Image,
-	}
-	cmd := cli.New()
-	_ = cmd.Flags().Set("timeout", "30s")
-	cmd.SetArgs(args)
-
-	// find the sign subcommand in the commands slice
-	for _, c := range cmd.Commands() {
-		if c.Name() == "sign" {
-			cmd = c
-			break
-		}
-	}
 
 	// if the signature repository is different from the image, set the COSIGN_REPOSITORY environment variable
 	// to push the signature to the specified repository
 	if opts.SignatureRepo != opts.Image {
 		t.Setenv("COSIGN_REPOSITORY", opts.SignatureRepo)
 	}
-
-	_ = cmd.Flags().Set("key", fmt.Sprintf("%s.key", opts.KeyName))
-	_ = cmd.Flags().Set("tlog-upload", "false")
-	_ = cmd.Flags().Set("yes", "true")
-	_ = cmd.Flags().Set("allow-http-registry", "true")
-	err := cmd.Execute()
+	err := sign.SignCmd(
+		&options.RootOptions{
+			Timeout: 30 * time.Second,
+		},
+		options.KeyOpts{
+			KeyRef: fmt.Sprintf("%s.key", opts.KeyName),
+		},
+		options.SignOptions{
+			Key:        fmt.Sprintf("%s.key", opts.KeyName),
+			TlogUpload: false,
+		},
+		[]string{opts.Image},
+	)
 	if err != nil {
 		f.Cleanup(t)
 		t.Fatal(err)
