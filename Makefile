@@ -1,6 +1,9 @@
+PORT := 5000
+
 #############
 ### TESTS ###
 #############
+
 .PHONY: test-e2e
 test-e2e:
 	@echo "Running e2e tests..."
@@ -17,9 +20,9 @@ test-unit:
 
 e2e-cluster:
 	@echo "Creating registry..."
-	@k3d registry create registry.localhost --port 5000
+	@k3d registry create registry.localhost --port $(PORT)
 	@echo "Adding registry to cluster..."
-	@k3d cluster create cosign-tests --registry-use k3d-registry.localhost:5000
+	@@uname -m | grep -q 'Darwin' && export K3D_FIX_DNS=0; k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(PORT)
 	@echo "Create test namespace..."
 	@kubectl create namespace test-cases
 
@@ -33,29 +36,30 @@ e2e-images:
 	@echo "Checking for cosign.key..."
 	@test -f cosign.key || (echo "cosign.key not found. Run 'make e2e-keys' to generate the pairs needed for the tests." && exit 1)
 	@echo "Building test image..."
-	@docker build -t k3d-registry.localhost:5000/cosignwebhook:dev .
+	@docker build -t k3d-registry.localhost:$(PORT)/cosignwebhook:dev .
 	@echo "Pushing test image..."
-	@docker push k3d-registry.localhost:5000/cosignwebhook:dev
+	@docker push k3d-registry.localhost:$(PORT)/cosignwebhook:dev
 	@echo "Signing test image..."
 	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/cosignwebhook:dev
+		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:$(PORT)/cosignwebhook:dev
 	@echo "Importing test image to cluster..."
-	@k3d image import k3d-registry.localhost:5000/cosignwebhook:dev --cluster cosign-tests
+	@k3d image import k3d-registry.localhost:$(PORT)/cosignwebhook:dev --cluster cosign-tests
 	@echo "Building busybox image..."
 	@docker pull busybox:latest
 	@echo "Tagging & pushing busybox images..."
-	@docker tag busybox:latest k3d-registry.localhost:5000/busybox:first
-	@docker tag busybox:latest k3d-registry.localhost:5000/busybox:second
-	@docker push k3d-registry.localhost:5000/busybox --all-tags
+	@docker tag busybox:latest k3d-registry.localhost:$(PORT)/busybox:first
+	@docker tag busybox:latest k3d-registry.localhost:$(PORT)/busybox:second
+	@docker push k3d-registry.localhost:$(PORT)/busybox --all-tags
 	@echo "Signing busybox images..."
 	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:5000/busybox:first && \
-		cosign sign --tlog-upload=false --key second.key k3d-registry.localhost:5000/busybox:second
+		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:$(PORT)/busybox:first && \
+		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:$(PORT)/busybox:first && \
+		cosign sign --tlog-upload=false --key second.key k3d-registry.localhost:$(PORT)/busybox:second
 
 e2e-deploy:
 	@echo "Deploying test image..."
 	@helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
-		--set image.repository=k3d-registry.localhost:5000/cosignwebhook \
+		--set image.repository=k3d-registry.localhost:$(PORT)/cosignwebhook \
 		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
 		--set logLevel=debug \
@@ -65,7 +69,7 @@ e2e-prep: e2e-cluster e2e-keys e2e-images e2e-deploy
 
 e2e-cleanup:
 	@echo "Cleaning up test env..."
-	@k3d registry delete k3d-registry || echo "Deleting k3d registry failed. Continuing..."
+	@k3d registry delete registry.localhost || echo "Deleting k3d registry failed. Continuing..."
 	@helm uninstall cosignwebhook -n cosignwebhook || echo "Uninstalling cosignwebhook helm release failed. Continuing..."
 	@k3d cluster delete cosign-tests || echo "Deleting cosign tests k3d cluster failed. Continuing..."
 	@rm -f cosign.pub cosign.key second.pub second.key || echo "Removing files failed. Continuing..."
