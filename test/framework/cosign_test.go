@@ -33,13 +33,28 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 				t.Fatal("failed to create public key")
 			}
 
-			coPrivStat, err := os.Stat("import-cosign.key")
+			coPrivStat, err := os.Stat(fmt.Sprintf("%s-%s.key", tt.name, ImportKeySuffix))
+
 			if err != nil || coPrivStat.Size() == 0 {
 				t.Fatal("failed to create cosign private key")
 			}
-			coPubStat, err := os.Stat("import-cosign.pub")
+			coPubStat, err := os.Stat(fmt.Sprintf("%s-%s.pub", tt.name, ImportKeySuffix))
+
 			if err != nil || coPubStat.Size() == 0 {
 				t.Fatal("failed to create cosign public key")
+			}
+
+			// pub keys should be the same
+			pubBytes, err := os.ReadFile(fmt.Sprintf("%s.pub", tt.name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			coPubBytes, err := os.ReadFile(fmt.Sprintf("%s-%s.pub", tt.name, ImportKeySuffix))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(pubBytes) != string(coPubBytes) {
+				t.Fatal("public keys do not match. expected: ", string(pubBytes), " got: ", string(coPubBytes))
 			}
 		})
 	}
@@ -48,7 +63,7 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 // TestFramework_SignContainer_RSA generates an RSA keypair and signs a container image
 // with the private key. The key is generated using the CreateRSAKeyPair function.
 func TestFramework_SignContainer_RSA(t *testing.T) {
-	if os.Getenv("COSIGN_INTEGRATION") == "" {
+	if os.Getenv("COSIGN_E2E") == "" {
 		t.Skip()
 	}
 
@@ -70,7 +85,7 @@ func TestFramework_SignContainer_RSA(t *testing.T) {
 	}
 
 	f.SignContainer(t, SignOptions{
-		KeyName: fmt.Sprintf("%s-%s", name, ImportKeySuffix),
-		Image:   "busybox",
+		KeyPath: fmt.Sprintf("%s-%s.key", name, ImportKeySuffix),
+		Image:   "k3d-registry.localhost:5000/busybox:first",
 	})
 }
