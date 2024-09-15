@@ -17,7 +17,7 @@ var terminationGracePeriodSeconds int64 = 3
 const (
 	busyboxOne    = "k3d-registry.localhost:5000/busybox:first"
 	busyboxTwo    = "k3d-registry.localhost:5000/busybox:second"
-	signatureRepo = "k3d-registry.localhost:5000"
+	signatureRepo = "k3d-registry.localhost:5000/sigs"
 )
 
 // testOneContainerSinglePubKeyEnvRef tests that a deployment with a single signed container,
@@ -30,7 +30,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 
@@ -87,11 +87,11 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxTwo,
 	})
 
@@ -163,7 +163,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 
@@ -240,11 +240,11 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 	_, pub1 := fw.CreateKeys(t, "test1")
 	_, pub2 := fw.CreateKeys(t, "test2")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test1",
+		KeyPath: "test1.key",
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test2",
+		KeyPath: "test2.key",
 		Image:   busyboxTwo,
 	})
 
@@ -335,11 +335,11 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxTwo,
 	})
 
@@ -430,11 +430,11 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxTwo,
 	})
 
@@ -527,7 +527,7 @@ func testEventEmittedOnSignatureVerification(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 
@@ -629,7 +629,7 @@ func testOneContainerWithCosignRepository(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName:       "test",
+		KeyPath:       "test.key",
 		Image:         busyboxOne,
 		SignatureRepo: signatureRepo,
 	})
@@ -710,7 +710,7 @@ func testOneContainerSinglePubKeyEnvRefRSA(t *testing.T) {
 
 	_, pub := fw.CreateRSAKeyPair(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: fmt.Sprintf("test-%s", framework.ImportKeySuffix),
+		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
 		Image:   busyboxOne,
 	})
 
@@ -766,14 +766,12 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 	// Create a deployment with two containers signed by the same RSA key
 	_, rsaPub := fw.CreateRSAKeyPair(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName:       fmt.Sprintf("test-%s", framework.ImportKeySuffix),
-		Image:         busyboxOne,
-		SignatureRepo: signatureRepo,
+		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
+		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName:       fmt.Sprintf("test-%s", framework.ImportKeySuffix),
-		Image:         busyboxTwo,
-		SignatureRepo: signatureRepo,
+		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
+		Image:   busyboxTwo,
 	})
 
 	depl := appsv1.Deployment{
@@ -793,7 +791,7 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "two-containers-single-pubkey-envref",
+							Name:  "two-containers-same-rsa-pub-key-env-ref-first",
 							Image: busyboxOne,
 							Command: []string{
 								"sh", "-c",
@@ -807,7 +805,7 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 							},
 						},
 						{
-							Name:  "two-containers-single-pubkey-envref",
+							Name:  "two-containers-same-rsa-pub-key-env-ref-second",
 							Image: busyboxTwo,
 							Command: []string{
 								"sh", "-c",
@@ -842,7 +840,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 	_, _ = fw.CreateKeys(t, "test")
 	_, other := fw.CreateKeys(t, "other")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 
@@ -899,7 +897,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName: "test",
+		KeyPath: "test.key",
 		Image:   busyboxOne,
 	})
 
@@ -1022,7 +1020,7 @@ func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
 
 	_, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyName:       "test",
+		KeyPath:       "test.key",
 		Image:         busyboxOne,
 		SignatureRepo: signatureRepo,
 	})

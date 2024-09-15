@@ -17,6 +17,7 @@ func TestPassingDeployments(t *testing.T) {
 		"EventEmittedOnNoSignatureVerification":     testEventEmittedOnNoSignatureVerification,
 		"OneContainerWIthCosignRepository":          testOneContainerWithCosignRepository,
 		"OneContainerSinglePubKeyEnvRefRSA":         testOneContainerSinglePubKeyEnvRefRSA,
+		"TwoContainersSinglePubKeyEnvRefRSA":        TestTwoContainersSinglePubKeyEnvRefRSA,
 	}
 
 	for name, tf := range testFuncs {
