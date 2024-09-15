@@ -62,7 +62,7 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -123,7 +123,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -138,7 +138,7 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -174,7 +174,7 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
-			"cosign.pub": pub,
+			"cosign.pub": pub.Key,
 		},
 	}
 
@@ -255,7 +255,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
-			"cosign.pub": pub1,
+			"cosign.pub": pub1.Key,
 		},
 	}
 
@@ -277,7 +277,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Containers: []corev1.Container{
 						{
-							Name:  "two-containers-mixed-pub-keyrefs-first",
+							Name:  "two-containers-mixed-pub-keyrefs-from-secret",
 							Image: busyboxOne,
 							Command: []string{
 								"sh",
@@ -299,7 +299,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 							},
 						},
 						{
-							Name:  "two-containers-mixed-pub-keyrefs-second",
+							Name:  "two-containers-mixed-pub-keyrefs-second-from-env",
 							Image: busyboxTwo,
 							Command: []string{
 								"sh",
@@ -309,7 +309,7 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub2,
+									Value: pub2.Key,
 								},
 							},
 						},
@@ -350,7 +350,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
-			"cosign.pub": pub,
+			"cosign.pub": pub.Key,
 		},
 	}
 
@@ -404,7 +404,7 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -445,7 +445,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
-			"cosign.pub": pub,
+			"cosign.pub": pub.Key,
 		},
 	}
 
@@ -501,7 +501,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -559,7 +559,7 @@ func testEventEmittedOnSignatureVerification(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -641,7 +641,7 @@ func testOneContainerWithCosignRepository(t *testing.T) {
 			Namespace: "test-cases",
 		},
 		StringData: map[string]string{
-			"cosign.pub": pub,
+			"cosign.pub": pub.Key,
 		},
 	}
 
@@ -742,7 +742,7 @@ func testOneContainerSinglePubKeyEnvRefRSA(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -764,7 +764,7 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 	}
 
 	// Create a deployment with two containers signed by the same RSA key
-	_, rsaPub := fw.CreateRSAKeyPair(t, "test")
+	_, pub := fw.CreateRSAKeyPair(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
 		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
 		Image:   busyboxOne,
@@ -800,7 +800,7 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: rsaPub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -814,7 +814,7 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: rsaPub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -872,7 +872,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: other,
+									Value: other.Key,
 								},
 							},
 						},
@@ -888,7 +888,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 }
 
 // testTwoContainersSinglePubKeyNoMatchEnvRef tests that a deployment with two signed containers,
-// with a public key provided via an environment variable, fails if one of the container's pub key is malformed.
+// with a public key provided via an environment variable, fails if one of the containers public key is malformed.
 func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 	fw, err := framework.New()
 	if err != nil {
@@ -929,7 +929,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},
@@ -1051,7 +1051,7 @@ func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: pub,
+									Value: pub.Key,
 								},
 							},
 						},

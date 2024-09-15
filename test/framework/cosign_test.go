@@ -17,10 +17,10 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &Framework{}
-			priv, pub := f.CreateRSAKeyPair(t, tt.name)
+			private, public := f.CreateRSAKeyPair(t, tt.name)
 			defer f.Cleanup(t)
 
-			if priv == "" || pub == "" {
+			if private.Key == "" || public.Key == "" {
 				t.Fatal("failed to create RSA key pair")
 			}
 
@@ -69,9 +69,9 @@ func TestFramework_SignContainer_RSA(t *testing.T) {
 
 	f := &Framework{}
 	name := "testkey"
-	priv, pub := f.CreateRSAKeyPair(t, name)
+	private, public := f.CreateRSAKeyPair(t, name)
 	defer f.Cleanup(t)
-	if priv == "" || pub == "" {
+	if private.Key == "" || public.Key == "" {
 		t.Fatal("failed to create RSA key pair")
 	}
 
