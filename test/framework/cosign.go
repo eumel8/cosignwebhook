@@ -79,39 +79,34 @@ func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string,
 		t.Fatal(err)
 	}
 
-	privFile, err := os.Create(fmt.Sprintf("%s.key", name))
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
 	privBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(priv),
 	})
-	if _, err = privFile.Write(privBytes); err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
+
+	err = os.WriteFile(fmt.Sprintf("%s.key", name), privBytes, 0o644)
+	if err != nil {
+		t.Errorf("failed to write private key to file: %v", err)
+		return "", ""
 	}
-	_ = privFile.Close()
 
 	// Generate and save the public key to a PEM file
 	pub := &priv.PublicKey
-	pubFile, err := os.Create(fmt.Sprintf("%s.pub", name))
+
+	pubASN1, err := x509.MarshalPKIXPublicKey(pub)
 	if err != nil {
 		f.Cleanup(t)
 		t.Fatal(err)
 	}
-
-	pubASN1 := x509.MarshalPKCS1PublicKey(pub)
 	pubBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: pubASN1,
 	})
-	if _, err = pubFile.Write(pubBytes); err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
+	err = os.WriteFile(fmt.Sprintf("%s.pub", name), pubBytes, 0o644)
+	if err != nil {
+		t.Errorf("failed to write public key to file: %v", err)
+		return "", ""
 	}
-	_ = pubFile.Close()
 
 	t.Setenv("COSIGN_PASSWORD", "")
 	// import the keypair into cosign for signing
@@ -120,7 +115,21 @@ func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string,
 		OutputKeyPrefix: fmt.Sprintf("%s-%s", name, ImportKeySuffix),
 	}, []string{})
 	if err != nil {
+		t.Errorf("failed to import keypair to cosign: %v", err)
 		return "", ""
+	}
+
+	// read private key and public key from the current directory
+	privBytes, err = os.ReadFile(fmt.Sprintf("%s-%s.key", name, ImportKeySuffix))
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
+	}
+
+	pubBytes, err = os.ReadFile(fmt.Sprintf("%s-%s.pub", name, ImportKeySuffix))
+	if err != nil {
+		f.Cleanup(t)
+		t.Fatal(err)
 	}
 
 	return string(privBytes), string(pubBytes)
@@ -128,7 +137,7 @@ func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string,
 
 // SignOptions is a struct to hold the options for signing a container
 type SignOptions struct {
-	KeyName       string
+	KeyPath       string
 	Image         string
 	SignatureRepo string
 }
@@ -148,11 +157,12 @@ func (f *Framework) SignContainer(t *testing.T, opts SignOptions) {
 			Timeout: 30 * time.Second,
 		},
 		options.KeyOpts{
-			KeyRef: fmt.Sprintf("%s.key", opts.KeyName),
+			KeyRef: opts.KeyPath,
 		},
 		options.SignOptions{
-			Key:        fmt.Sprintf("%s.key", opts.KeyName),
+			Key:        opts.KeyPath,
 			TlogUpload: false,
+			Upload:     true,
 		},
 		[]string{opts.Image},
 	)
