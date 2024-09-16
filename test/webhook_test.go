@@ -1,7 +1,6 @@
 package test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/eumel8/cosignwebhook/test/framework"
@@ -28,9 +27,9 @@ func testOneContainerSinglePubKeyEnvRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 
@@ -85,13 +84,13 @@ func testTwoContainersSinglePubKeyEnvRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxTwo,
 	})
 
@@ -161,9 +160,9 @@ func testOneContainerSinglePubKeySecretRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 
@@ -237,14 +236,14 @@ func testTwoContainersMixedPubKeyMixedRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub1 := fw.CreateKeys(t, "test1")
-	_, pub2 := fw.CreateKeys(t, "test2")
+	priv1, pub1 := fw.CreateKeys(t, "test1")
+	priv2, pub2 := fw.CreateKeys(t, "test2")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test1.key",
+		KeyPath: priv1.Path,
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test2.key",
+		KeyPath: priv2.Path,
 		Image:   busyboxTwo,
 	})
 
@@ -333,13 +332,13 @@ func testTwoContainersSinglePubKeyMixedRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxTwo,
 	})
 
@@ -428,13 +427,13 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxTwo,
 	})
 
@@ -525,9 +524,9 @@ func testEventEmittedOnSignatureVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 
@@ -627,9 +626,9 @@ func testOneContainerWithCosignRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath:       "test.key",
+		KeyPath:       priv.Path,
 		Image:         busyboxOne,
 		SignatureRepo: signatureRepo,
 	})
@@ -708,9 +707,9 @@ func testOneContainerSinglePubKeyEnvRefRSA(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateRSAKeyPair(t, "test")
+	priv, pub := fw.CreateRSAKeyPair(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 
@@ -764,13 +763,13 @@ func TestTwoContainersSinglePubKeyEnvRefRSA(t *testing.T) {
 	}
 
 	// Create a deployment with two containers signed by the same RSA key
-	_, pub := fw.CreateRSAKeyPair(t, "test")
+	priv, pub := fw.CreateRSAKeyPair(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: fmt.Sprintf("test-%s.key", framework.ImportKeySuffix),
+		KeyPath: priv.Path,
 		Image:   busyboxTwo,
 	})
 
@@ -837,10 +836,10 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _ = fw.CreateKeys(t, "test")
-	_, other := fw.CreateKeys(t, "other")
+	priv, _ := fw.CreateKeys(t, "test")
+	_, otherPub := fw.CreateKeys(t, "other")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 
@@ -872,7 +871,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(t *testing.T) {
 							Env: []corev1.EnvVar{
 								{
 									Name:  webhook.CosignEnvVar,
-									Value: other.Key,
+									Value: otherPub.Key,
 								},
 							},
 						},
@@ -895,9 +894,9 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath: "test.key",
+		KeyPath: priv.Path,
 		Image:   busyboxOne,
 	})
 
@@ -1018,9 +1017,9 @@ func testOneContainerWithCosingRepoVariableMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, pub := fw.CreateKeys(t, "test")
+	priv, pub := fw.CreateKeys(t, "test")
 	fw.SignContainer(t, framework.SignOptions{
-		KeyPath:       "test.key",
+		KeyPath:       priv.Path,
 		Image:         busyboxOne,
 		SignatureRepo: signatureRepo,
 	})
