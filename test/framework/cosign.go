@@ -69,7 +69,6 @@ func (f *Framework) cleanupKeys() {
 
 // CreateECDSAKeyPair generates an ECDSA keypair and saves the keys to the current directory
 func CreateECDSAKeyPair(f *Framework, name string) (Priv, Pub) {
-
 	if f.err != nil {
 		return Priv{}, Pub{}
 	}
@@ -111,7 +110,6 @@ func CreateECDSAKeyPair(f *Framework, name string) (Priv, Pub) {
 
 // CreateRSAKeyPair generates an RSA keypair and saves the keys to the current directory
 func CreateRSAKeyPair(f *Framework, name string) (Priv, Pub) {
-
 	if f.err != nil {
 		return Priv{}, Pub{}
 	}
@@ -185,7 +183,6 @@ func CreateRSAKeyPair(f *Framework, name string) (Priv, Pub) {
 
 // SignContainer signs the container using the provided SignOptions
 func (f *Framework) SignContainer(opts SignOptions) {
-
 	if f.err != nil {
 		return
 	}
