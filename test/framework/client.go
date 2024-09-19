@@ -105,7 +105,7 @@ func (f *Framework) cleanupDeployments() {
 				f.t.Logf("All pods are deleted")
 				return
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -143,7 +143,7 @@ func (f *Framework) GetPods(d appsv1.Deployment) *corev1.PodList {
 		return nil
 	}
 
-	pods, err := f.k8s.CoreV1().Pods("test-cases").List(context.Background(), metav1.ListOptions{
+	pods, err := f.k8s.CoreV1().Pods(d.Namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app=%s", d.Name),
 	})
 	if err != nil {
@@ -159,7 +159,7 @@ func (f *Framework) CreateDeployment(d appsv1.Deployment) {
 	}
 
 	f.t.Logf("creating deployment %s", d.Name)
-	_, err := f.k8s.AppsV1().Deployments("test-cases").Create(context.Background(), &d, metav1.CreateOptions{})
+	_, err := f.k8s.AppsV1().Deployments(d.Namespace).Create(context.Background(), &d, metav1.CreateOptions{})
 	if err != nil {
 		f.err = err
 		return
@@ -168,18 +168,18 @@ func (f *Framework) CreateDeployment(d appsv1.Deployment) {
 }
 
 // CreateSecret creates a secret in the testing namespace
-func (f *Framework) CreateSecret(secret corev1.Secret) {
+func (f *Framework) CreateSecret(s corev1.Secret) {
 	if f.err != nil {
 		return
 	}
 
-	f.t.Logf("creating secret %s", secret.Name)
-	_, err := f.k8s.CoreV1().Secrets("test-cases").Create(context.Background(), &secret, metav1.CreateOptions{})
+	f.t.Logf("creating secret %s", s.Name)
+	_, err := f.k8s.CoreV1().Secrets(s.Namespace).Create(context.Background(), &s, metav1.CreateOptions{})
 	if err != nil {
 		f.err = err
 		return
 	}
-	f.t.Logf("secret %s created", secret.Name)
+	f.t.Logf("secret %s created", s.Name)
 }
 
 // WaitForDeployment waits until the deployment is ready
@@ -207,7 +207,7 @@ func (f *Framework) WaitForDeployment(d appsv1.Deployment) {
 		case event := <-w.ResultChan():
 			deployment, ok := event.Object.(*appsv1.Deployment)
 			if !ok {
-				time.Sleep(5 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
@@ -215,7 +215,7 @@ func (f *Framework) WaitForDeployment(d appsv1.Deployment) {
 				f.t.Logf("deployment %s is ready", d.Name)
 				return
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -226,7 +226,7 @@ func (f *Framework) waitForReplicaSetCreation(d appsv1.Deployment) string {
 		return ""
 	}
 
-	rs, err := f.k8s.AppsV1().ReplicaSets("test-cases").Watch(context.Background(), metav1.ListOptions{
+	rs, err := f.k8s.AppsV1().ReplicaSets(d.Namespace).Watch(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app=%s", d.Name),
 	})
 	if err != nil {
@@ -247,7 +247,7 @@ func (f *Framework) waitForReplicaSetCreation(d appsv1.Deployment) string {
 				f.t.Logf("replicaset %s created", rs.Name)
 				return rs.Name
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -267,7 +267,7 @@ func (f *Framework) AssertDeploymentFailed(d appsv1.Deployment) {
 	}
 
 	// get warning events of deployment's namespace and check if the deployment failed
-	w, err := f.k8s.CoreV1().Events("test-cases").Watch(context.Background(), metav1.ListOptions{
+	w, err := f.k8s.CoreV1().Events(d.Namespace).Watch(context.Background(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", rsName),
 	})
 	if err != nil {
@@ -285,14 +285,14 @@ func (f *Framework) AssertDeploymentFailed(d appsv1.Deployment) {
 		case event := <-w.ResultChan():
 			e, ok := event.Object.(*corev1.Event)
 			if !ok {
-				time.Sleep(5 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 			if e.Reason == "FailedCreate" {
 				f.t.Logf("deployment %s failed: %s", d.Name, e.Message)
 				return
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -306,7 +306,7 @@ func (f *Framework) AssertEventForPod(reason string, p corev1.Pod) {
 	f.t.Logf("waiting for %s event to be created for pod %s", reason, p.Name)
 
 	// watch for events of deployment's namespace and check if the podverified event is created
-	w, err := f.k8s.CoreV1().Events("test-cases").Watch(context.Background(), metav1.ListOptions{
+	w, err := f.k8s.CoreV1().Events(p.Namespace).Watch(context.Background(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", p.Name),
 	})
 	if err != nil {
@@ -324,14 +324,14 @@ func (f *Framework) AssertEventForPod(reason string, p corev1.Pod) {
 		case event := <-w.ResultChan():
 			e, ok := event.Object.(*corev1.Event)
 			if !ok {
-				time.Sleep(5 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 			if e.Reason == reason {
 				f.t.Logf("%s event created for pod %s", reason, p.Name)
 				return
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }

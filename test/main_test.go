@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/eumel8/cosignwebhook/test/framework"
@@ -26,7 +27,8 @@ func TestPassECDSA(t *testing.T) {
 	}
 
 	for name, tf := range testFuncs {
-		t.Run(name, tf(fw, framework.CreateECDSAKeyPair, name))
+		t.Run(fmt.Sprintf("[%s] %s", "ECDSA", name), tf(fw, framework.CreateECDSAKeyPair, name))
+		t.Run(fmt.Sprintf("[%s] %s", "RSA", name), tf(fw, framework.CreateRSAKeyPair, name))
 	}
 }
 
@@ -46,5 +48,6 @@ func TestFailingDeployments(t *testing.T) {
 
 	for name, tf := range testFuncs {
 		t.Run(name, tf(fw, framework.CreateECDSAKeyPair, name))
+		t.Run(name, tf(fw, framework.CreateRSAKeyPair, name))
 	}
 }
