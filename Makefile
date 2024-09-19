@@ -7,7 +7,7 @@ PORT := 5000
 .PHONY: test-e2e
 test-e2e:
 	@echo "Running e2e tests..."
-	@go test -v -race -count 1 ./test/
+	@export COSIGN_E2E="42" && go test -v -race -count 1 ./test/
 
 .PHONY: test-unit
 test-unit:
