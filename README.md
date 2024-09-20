@@ -150,12 +150,12 @@ make test-e2e
 ### E2E tests
 
 The E2E tests require a running kubernetes cluster. Currently, the namespace and webhook are deployed via helper make
-targets. To run the tests the following is required:
+targets. To only run the tests, the following is required:
 
 * docker
 * cosign (v2)
 
-To run the E2E tests, the following steps are required (in order):
+To run the whole E2E tests, the following steps are required (in order):
 
 * create a k3d local cluster for the tests and a local iamge registry (`make e2e-cluster`)
 * signing keys are generated (`make e2e-keys`)
@@ -166,6 +166,8 @@ To do all of the above, simply run `make e2e-prep`. Each step should also be abl
 up the E2E setup, run `make e2e-cleanup`.
 This will delete everything created by the E2E preparation. If you've already created the cluster and the keys, and
 you're actively testing new code, you may run `make e2e-images e2e-deploy test-e2e` to test your changes.
+
+In case you're running the tests on Apple devices, you may need to use deactivate the k3s dns fix (already implemented in the makefile). If your containers in the cluster don't start by skipping the fix, you may set `K3S_FIX_DNS` back to `1` in the `e2e-cluster` target.
 
 ## Local build
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/rsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -127,7 +127,7 @@ func getPod(b []byte) (*corev1.Pod, *v1.AdmissionReview, error) {
 	return &pod, &arRequest, nil
 }
 
-// getPubKeyFromEnv procures the public key from the container's nth container, if present.
+// getPubKeyFromEnv procures the public key from the container's environment section, if present.
 // Else it returns an empty string and an error.
 func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string) (string, error) {
 	for _, envVar := range c.Env {
@@ -337,14 +337,11 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 		return fmt.Errorf("public key for image %q malformed", image)
 	}
 
-	// Load public key to verify
-	cosignLoadKey, err := signature.LoadECDSAVerifier(publicKey.(*ecdsa.PublicKey), crypto.SHA256)
+	verifier, err := csh.newVerifierForKey(publicKey)
 	if err != nil {
-		log.Errorf("Error loading ECDSA verifier: %v", err)
-		return errors.New("failed creating key verifier")
+		return err
 	}
 
-	// Verify signature on remote image with the presented public key
 	remoteOpts := []ociremote.Option{
 		ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc)),
 	}
@@ -364,11 +361,11 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 		refImage,
 		&cosign.CheckOpts{
 			RegistryClientOpts: remoteOpts,
-			SigVerifier:        cosignLoadKey,
+			SigVerifier:        verifier,
 			IgnoreSCT:          true,
 			IgnoreTlog:         true,
-		})
-
+		},
+	)
 	if err != nil {
 		log.Errorf("Error verifying signature: %v", err)
 		return fmt.Errorf("signature for %q couldn't be verified", image)
@@ -377,6 +374,19 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 	verifiedProcessed.Inc()
 	log.Infof("Image %q verified successfully", image)
 	return nil
+}
+
+// newVerifierForKey creates a new signature verifier for the given public key.
+func (*CosignServerHandler) newVerifierForKey(publicKey crypto.PublicKey) (signature.Verifier, error) {
+	switch pub := publicKey.(type) {
+	case *ecdsa.PublicKey:
+		return signature.LoadECDSAVerifier(pub, crypto.SHA256)
+	case *rsa.PublicKey:
+		return signature.LoadRSAPKCS1v15Verifier(pub, crypto.SHA256)
+	default:
+		log.Errorf("Unsupported public key type: %t", publicKey)
+		return nil, fmt.Errorf("unsupported public key type: %t", publicKey)
+	}
 }
 
 // getCosignRepository returns the repository specified by the COSIGN_REPOSITORY environment variable

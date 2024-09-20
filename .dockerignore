@@ -1,0 +1,8 @@
+Makefile
+*.key
+*.pub
+*.png
+hack/
+manifests/
+chart/
+README.md
