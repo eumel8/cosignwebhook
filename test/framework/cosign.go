@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"testing"
 	"time"
 
 	"github.com/sigstore/cosign/v2/cmd/cosign/cli/importkeypair"
@@ -21,118 +20,16 @@ import (
 
 const ImportKeySuffix = "imported"
 
-// cleanupKeys removes all keypair files from the testing directory
-func cleanupKeys(t testing.TB) {
-	t.Logf("cleaning up keypair files")
-	files, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatalf("failed reading directory: %v", err)
-	}
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		reKey := regexp.MustCompile(".*.key")
-		rePub := regexp.MustCompile(".*.pub")
-		if reKey.MatchString(f.Name()) || rePub.MatchString(f.Name()) {
-			err = os.Remove(f.Name())
-			if err != nil {
-				t.Fatalf("failed removing file %s: %v", f.Name(), err)
-			}
-		}
-	}
-	t.Logf("cleaned up keypair files")
+// Pub contains the public key and its path
+type Pub struct {
+	Key  string
+	Path string
 }
 
-// CreateKeys creates a signing keypair for cosing with the provided name
-func (f *Framework) CreateKeys(t testing.TB, name string) (private string, public string) {
-	args := []string{fmt.Sprintf("--output-key-prefix=%s", name)}
-	err := os.Setenv("COSIGN_PASSWORD", "")
-	if err != nil {
-		t.Fatalf("failed setting COSIGN_PASSWORD: %v", err)
-	}
-	cmd := cli.GenerateKeyPair()
-	cmd.SetArgs(args)
-	err = cmd.Execute()
-	if err != nil {
-		f.Cleanup(t)
-	}
-
-	// read private key and public key from the current directory
-	privateKey, err := os.ReadFile(fmt.Sprintf("%s.key", name))
-	if err != nil {
-		f.Cleanup(t)
-	}
-	pubKey, err := os.ReadFile(fmt.Sprintf("%s.pub", name))
-	if err != nil {
-		f.Cleanup(t)
-	}
-
-	return string(privateKey), string(pubKey)
-}
-
-// CreateRSAKeyPair creates an RSA keypair for signing with the provided name
-func (f *Framework) CreateRSAKeyPair(t *testing.T, name string) (private string, public string) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-
-	privBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(priv),
-	})
-
-	err = os.WriteFile(fmt.Sprintf("%s.key", name), privBytes, 0o644)
-	if err != nil {
-		t.Errorf("failed to write private key to file: %v", err)
-		return "", ""
-	}
-
-	// Generate and save the public key to a PEM file
-	pub := &priv.PublicKey
-
-	pubASN1, err := x509.MarshalPKIXPublicKey(pub)
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-	pubBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: pubASN1,
-	})
-	err = os.WriteFile(fmt.Sprintf("%s.pub", name), pubBytes, 0o644)
-	if err != nil {
-		t.Errorf("failed to write public key to file: %v", err)
-		return "", ""
-	}
-
-	t.Setenv("COSIGN_PASSWORD", "")
-	// import the keypair into cosign for signing
-	err = importkeypair.ImportKeyPairCmd(context.Background(), options.ImportKeyPairOptions{
-		Key:             fmt.Sprintf("%s.key", name),
-		OutputKeyPrefix: fmt.Sprintf("%s-%s", name, ImportKeySuffix),
-	}, []string{})
-	if err != nil {
-		t.Errorf("failed to import keypair to cosign: %v", err)
-		return "", ""
-	}
-
-	// read private key and public key from the current directory
-	privBytes, err = os.ReadFile(fmt.Sprintf("%s-%s.key", name, ImportKeySuffix))
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-
-	pubBytes, err = os.ReadFile(fmt.Sprintf("%s-%s.pub", name, ImportKeySuffix))
-	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
-	}
-
-	return string(privBytes), string(pubBytes)
+// Priv contains the private key and its path
+type Priv struct {
+	Key  string
+	Path string
 }
 
 // SignOptions is a struct to hold the options for signing a container
@@ -142,15 +39,161 @@ type SignOptions struct {
 	SignatureRepo string
 }
 
-// SignContainer signs the container with the provided private key
-func (f *Framework) SignContainer(t *testing.T, opts SignOptions) {
+// KeyFunc is a function that generates a keypair by using the testing framework
+type KeyFunc func(f *Framework, name string) (Priv, Pub)
+
+// cleanupKeys removes all keypair files from the testing directory
+func (f *Framework) cleanupKeys() {
+	f.t.Logf("cleaning up keypair files")
+	files, err := os.ReadDir(".")
+	if err != nil {
+		f.err = fmt.Errorf("failed reading directory: %v", err)
+		return
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		reKey := regexp.MustCompile(".*.key")
+		rePub := regexp.MustCompile(".*.pub")
+		if reKey.MatchString(file.Name()) || rePub.MatchString(file.Name()) {
+			err = os.Remove(file.Name())
+			if err != nil {
+				f.err = fmt.Errorf("failed to remove file: %v", err)
+				return
+			}
+		}
+	}
+	f.t.Logf("cleaned up keypair files")
+}
+
+// CreateECDSAKeyPair generates an ECDSA keypair and saves the keys to the current directory
+func CreateECDSAKeyPair(f *Framework, name string) (Priv, Pub) {
+	if f.err != nil {
+		return Priv{}, Pub{}
+	}
+
+	args := []string{fmt.Sprintf("--output-key-prefix=%s", name)}
+	err := os.Setenv("COSIGN_PASSWORD", "")
+	if err != nil {
+		f.err = err
+		return Priv{}, Pub{}
+	}
+	cmd := cli.GenerateKeyPair()
+	cmd.SetArgs(args)
+	err = cmd.Execute()
+	if err != nil {
+		f.err = err
+		return Priv{}, Pub{}
+	}
+
+	// read private key and public key from the current directory
+	privateKey, err := os.ReadFile(fmt.Sprintf("%s.key", name))
+	if err != nil {
+		f.err = err
+		return Priv{}, Pub{}
+	}
+	pubKey, err := os.ReadFile(fmt.Sprintf("%s.pub", name))
+	if err != nil {
+		f.err = err
+		return Priv{}, Pub{}
+	}
+
+	return Priv{
+			Key:  string(privateKey),
+			Path: fmt.Sprintf("%s.key", name),
+		}, Pub{
+			Key:  string(pubKey),
+			Path: fmt.Sprintf("%s.pub", name),
+		}
+}
+
+// CreateRSAKeyPair generates an RSA keypair and saves the keys to the current directory
+func CreateRSAKeyPair(f *Framework, name string) (Priv, Pub) {
+	if f.err != nil {
+		return Priv{}, Pub{}
+	}
+
+	pkey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		f.err = fmt.Errorf("failed to generate RSA key: %v", err)
+		return Priv{}, Pub{}
+	}
+	privBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(pkey),
+	})
+
+	err = os.WriteFile(fmt.Sprintf("%s.key", name), privBytes, 0o644)
+	if err != nil {
+		f.err = fmt.Errorf("failed to write private key to file: %v", err)
+		return Priv{}, Pub{}
+	}
+
+	// Generate and save the public key to a PEM file
+	pubKey := &pkey.PublicKey
+
+	pubASN1, err := x509.MarshalPKIXPublicKey(pubKey)
+	if err != nil {
+		f.err = fmt.Errorf("failed to marshal public key: %v", err)
+		return Priv{}, Pub{}
+	}
+	pubBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubASN1,
+	})
+	err = os.WriteFile(fmt.Sprintf("%s.pub", name), pubBytes, 0o644)
+	if err != nil {
+		f.err = fmt.Errorf("failed to write public key to file: %v", err)
+		return Priv{}, Pub{}
+	}
+
+	f.t.Setenv("COSIGN_PASSWORD", "")
+	// import the keypair into cosign for signing
+	err = importkeypair.ImportKeyPairCmd(context.Background(), options.ImportKeyPairOptions{
+		Key:             fmt.Sprintf("%s.key", name),
+		OutputKeyPrefix: fmt.Sprintf("%s-%s", name, ImportKeySuffix),
+	}, []string{})
+	if err != nil {
+		f.err = fmt.Errorf("failed to import keypair: %v", err)
+		return Priv{}, Pub{}
+	}
+
+	// read private key and public key from the current directory
+	privBytes, err = os.ReadFile(fmt.Sprintf("%s-%s.key", name, ImportKeySuffix))
+	if err != nil {
+		f.err = fmt.Errorf("failed reading private key: %v", err)
+		return Priv{}, Pub{}
+	}
+
+	pubBytes, err = os.ReadFile(fmt.Sprintf("%s-%s.pub", name, ImportKeySuffix))
+	if err != nil {
+		f.err = fmt.Errorf("failed reading public key: %v", err)
+		return Priv{}, Pub{}
+	}
+
+	return Priv{
+			Key:  string(privBytes),
+			Path: fmt.Sprintf("%s-%s.key", name, ImportKeySuffix),
+		}, Pub{
+			Key:  string(pubBytes),
+			Path: fmt.Sprintf("%s-%s.pub", name, ImportKeySuffix),
+		}
+}
+
+// SignContainer signs the container using the provided SignOptions
+func (f *Framework) SignContainer(opts SignOptions) {
+	if f.err != nil {
+		return
+	}
+
 	// get SHA of the container image
-	t.Setenv("COSIGN_PASSWORD", "")
+	f.t.Setenv("COSIGN_PASSWORD", "")
 
 	// if the signature repository is different from the image, set the COSIGN_REPOSITORY environment variable
 	// to push the signature to the specified repository
 	if opts.SignatureRepo != opts.Image {
-		t.Setenv("COSIGN_REPOSITORY", opts.SignatureRepo)
+		f.t.Setenv("COSIGN_REPOSITORY", opts.SignatureRepo)
 	}
 	err := sign.SignCmd(
 		&options.RootOptions{
@@ -167,7 +210,6 @@ func (f *Framework) SignContainer(t *testing.T, opts SignOptions) {
 		[]string{opts.Image},
 	)
 	if err != nil {
-		f.Cleanup(t)
-		t.Fatal(err)
+		f.err = fmt.Errorf("failed to sign container: %v", err)
 	}
 }

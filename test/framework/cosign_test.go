@@ -16,11 +16,13 @@ func TestFramework_CreateRSAKeyPair(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &Framework{}
-			priv, pub := f.CreateRSAKeyPair(t, tt.name)
-			defer f.Cleanup(t)
+			f := &Framework{
+				t: t,
+			}
+			defer f.Cleanup()
+			private, public := CreateRSAKeyPair(f, tt.name)
 
-			if priv == "" || pub == "" {
+			if private.Key == "" || public.Key == "" {
 				t.Fatal("failed to create RSA key pair")
 			}
 
@@ -67,11 +69,13 @@ func TestFramework_SignContainer_RSA(t *testing.T) {
 		t.Skip()
 	}
 
-	f := &Framework{}
+	f := &Framework{
+		t: t,
+	}
+	defer f.Cleanup()
 	name := "testkey"
-	priv, pub := f.CreateRSAKeyPair(t, name)
-	defer f.Cleanup(t)
-	if priv == "" || pub == "" {
+	private, public := CreateRSAKeyPair(f, name)
+	if private.Key == "" || public.Key == "" {
 		t.Fatal("failed to create RSA key pair")
 	}
 
@@ -84,7 +88,7 @@ func TestFramework_SignContainer_RSA(t *testing.T) {
 		t.Fatal("failed to create public key")
 	}
 
-	f.SignContainer(t, SignOptions{
+	f.SignContainer(SignOptions{
 		KeyPath: fmt.Sprintf("%s-%s.key", name, ImportKeySuffix),
 		Image:   "k3d-registry.localhost:5000/busybox:first",
 	})
