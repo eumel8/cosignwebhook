@@ -380,8 +380,10 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 func (*CosignServerHandler) newVerifierForKey(publicKey crypto.PublicKey) (signature.Verifier, error) {
 	switch pub := publicKey.(type) {
 	case *ecdsa.PublicKey:
+		log.Debug("Creating ECDSA verifier for key")
 		return signature.LoadECDSAVerifier(pub, crypto.SHA256)
 	case *rsa.PublicKey:
+		log.Debug("Creating RSA verifier for key")
 		return signature.LoadRSAPKCS1v15Verifier(pub, crypto.SHA256)
 	default:
 		log.Errorf("Unsupported public key type: %t", publicKey)
