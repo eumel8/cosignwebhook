@@ -22,7 +22,7 @@ e2e-cluster:
 	@echo "Creating registry..."
 	@k3d registry create registry.localhost --port $(PORT)
 	@echo "Adding registry to cluster..."
-	@uname -m | grep -q 'Darwin' && export K3D_FIX_DNS=0; k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(PORT)
+	@uname | grep -q 'Darwin' && export K3D_FIX_DNS=0; k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(PORT)
 	@echo "Create test namespace..."
 	@kubectl create namespace test-cases
 
