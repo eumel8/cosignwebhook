@@ -26,16 +26,19 @@ webhooks:
         - key: kubernetes.io/metadata.name
           operator: NotIn
           values: [{{ .Release.Namespace | default "default" }}{{- if .Values.admission.exclude }},{{ .Values.admission.exclude }}{{- end }}]
+          objectSelector: {}
     clientConfig:
       service:
         name: {{ include "cosignwebhook.fullname" . }}
         namespace: {{ .Release.Namespace | default "default" }}
         path: "/validate"
+        port: 443
       caBundle: {{ $ca.Cert | b64enc }}
     rules:
       - operations: ["CREATE","UPDATE"]
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
+        scope: "*"
     failurePolicy: {{ .Values.admission.failurePolicy }}
     sideEffects: {{ .Values.admission.sideEffects }}
