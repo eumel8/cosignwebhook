@@ -40,6 +40,7 @@ webhooks:
         apiVersions: ["v1"]
         resources: ["pods"]
         scope: "*"
+    objectSelector: {}
     failurePolicy: {{ .Values.admission.failurePolicy }}
     sideEffects: {{ .Values.admission.sideEffects }}
     timeoutSeconds: {{ .Values.admission.timeoutSeconds }}
