@@ -74,3 +74,16 @@ e2e-cleanup:
 	@k3d cluster delete cosign-tests || echo "Deleting cosign tests k3d cluster failed. Continuing..."
 	@rm -f cosign.pub cosign.key second.pub second.key || echo "Removing files failed. Continuing..."
 	@echo "Done."
+
+#############
+### CHART ###
+#############
+
+.PHONY: chart-lint chart
+chart-lint:
+	@echo "Linting chart..."
+	@helm lint chart
+
+chart:
+	@echo "Packaging chart..."
+	@helm package chart

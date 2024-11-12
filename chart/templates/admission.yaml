@@ -21,12 +21,12 @@ webhooks:
   - admissionReviewVersions:
     - v1
     name: {{ .Values.admission.webhook.name }}
+    matchPolicy: {{ .Values.admission.matchPolicy }}
     namespaceSelector:
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
           values: [{{ .Release.Namespace | default "default" }}{{- if .Values.admission.exclude }},{{ .Values.admission.exclude }}{{- end }}]
-          objectSelector: {}
     clientConfig:
       service:
         name: {{ include "cosignwebhook.fullname" . }}
@@ -42,3 +42,4 @@ webhooks:
         scope: "*"
     failurePolicy: {{ .Values.admission.failurePolicy }}
     sideEffects: {{ .Values.admission.sideEffects }}
+    timeoutSeconds: {{ .Values.admission.timeoutSeconds }}
