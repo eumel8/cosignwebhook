@@ -1,6 +1,3 @@
-# build stage
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
 FROM golang:1.23 AS build-env
 WORKDIR /app
 COPY  . /app
