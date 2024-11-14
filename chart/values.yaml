@@ -25,6 +25,9 @@ admission:
     name: webhook.example.com
   # list of excluded namespaces, comma-separated
   # exclude: default, kube-system, cattle-system
+  exclude: ""
+  matchPolicy: Equivalent
+  timeoutSeconds: 10
 
 podAnnotations: {}
 

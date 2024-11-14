@@ -21,6 +21,7 @@ webhooks:
   - admissionReviewVersions:
     - v1
     name: {{ .Values.admission.webhook.name }}
+    matchPolicy: {{ .Values.admission.matchPolicy }}
     namespaceSelector:
       matchExpressions:
         - key: kubernetes.io/metadata.name
@@ -31,11 +32,15 @@ webhooks:
         name: {{ include "cosignwebhook.fullname" . }}
         namespace: {{ .Release.Namespace | default "default" }}
         path: "/validate"
+        port: 443
       caBundle: {{ $ca.Cert | b64enc }}
     rules:
       - operations: ["CREATE","UPDATE"]
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
+        scope: "*"
+    objectSelector: {}
     failurePolicy: {{ .Values.admission.failurePolicy }}
     sideEffects: {{ .Values.admission.sideEffects }}
+    timeoutSeconds: {{ .Values.admission.timeoutSeconds }}

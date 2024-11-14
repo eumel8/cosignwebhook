@@ -1,4 +1,3 @@
-# build stage
 FROM golang:1.23 AS build-env
 WORKDIR /app
 COPY  . /app
