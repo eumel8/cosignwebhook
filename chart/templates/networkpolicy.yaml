@@ -11,6 +11,8 @@ spec:
   - ports:
     - port: {{ .Values.service.metricPort }}
       protocol: TCP
+    - port: {{ .Values.service.targetPort }}
+      protocol: TCP
   podSelector:
     matchLabels:
     {{- include "cosignwebhook.selectorLabels" . | nindent 6 }}
