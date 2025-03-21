@@ -384,8 +384,8 @@ func (*CosignServerHandler) newVerifierForKey(publicKey crypto.PublicKey) (signa
 	case *rsa.PublicKey:
 		return signature.LoadRSAPKCS1v15Verifier(pub, crypto.SHA256)
 	default:
-		log.Errorf("Unsupported public key type: %t", publicKey)
-		return nil, fmt.Errorf("unsupported public key type: %t", publicKey)
+		log.Errorf("Unsupported public key type: %v", pub)
+		return nil, fmt.Errorf("unsupported public key type: %v", pub)
 	}
 }
 
