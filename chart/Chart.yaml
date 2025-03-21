@@ -2,7 +2,7 @@ apiVersion: v2
 name: cosignwebhook
 description: A Helm chart for Cosign Webhook Admission Controller
 type: application
-version: 4.1.2
+version: 4.1.2-rc1
 appVersion: "4.3.1"
 maintainers:
 - name: eumel8
