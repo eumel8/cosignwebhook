@@ -200,7 +200,7 @@ func testECDSAPubKey(t testing.TB) crypto.PublicKey {
 
 // testRSAPubKey creates an RSA keypair and returns the public key
 func testRSAPubKey(t testing.TB) crypto.PublicKey {
-	key, err := rsa.GenerateKey(rand.Reader, 256)
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
 		t.Errorf("failed generating RSA key: %v", err)
 		return nil

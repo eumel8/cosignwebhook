@@ -1,4 +1,4 @@
-FROM golang:1.23 AS build-env
+FROM golang:1.24 AS build-env
 WORKDIR /app
 COPY  . /app
 RUN useradd -u 10001 webhook && \
