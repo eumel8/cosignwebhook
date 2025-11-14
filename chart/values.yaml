@@ -106,7 +106,7 @@ affinity: {}
 cosign:
   image:
     repository: ghcr.io/sigstore/cosign/cosign
-    tag: v2.4.0
+    tag: v3.0.2
     pullPolicy: IfNotPresent
   sccosign:
     key: |
