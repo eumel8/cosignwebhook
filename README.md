@@ -153,7 +153,7 @@ The E2E tests require a running kubernetes cluster. Currently, the namespace and
 targets. To only run the tests, the following is required:
 
 * docker
-* cosign (v2)
+* cosign (v3)
 
 To run the whole E2E tests, the following steps are required (in order):
 
