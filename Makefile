@@ -51,8 +51,10 @@ e2e-images:
 	@echo "Pulling busybox..."
 	@docker pull $(BUSYBOX_SRC)
 	@echo "Tagging busybox images..."
-	@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):first
-	@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):second
+	#@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):first
+	#@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):second
+	@docker tag $(BUSYBOX_SRC) $(REGISTRY):first
+	@docker tag $(BUSYBOX_SRC) $(REGISTRY):second
 	@echo "Pushing busybox images..."
 	@docker push $(REGISTRY) --all-tags
 	@echo "Signing busybox images..."
