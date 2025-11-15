@@ -21,7 +21,7 @@ RSA public key (if present).
 
 ```bash
 helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --versi
-on 3.0.0 --create-namespace
+on 5.0.0 --create-namespace
 ```
 
 this installation has some advantages:
