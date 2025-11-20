@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/eumel8/cosignwebhook/cosignwebhook
   pullPolicy: IfNotPresent
-  tag: 4.3.2-rc0
+  tag: 5.0.0
 
 imagePullSecrets: []
 logLevel: info
@@ -106,7 +106,7 @@ affinity: {}
 cosign:
   image:
     repository: ghcr.io/sigstore/cosign/cosign
-    tag: v2.4.0
+    tag: v3.0.2
     pullPolicy: IfNotPresent
   sccosign:
     key: |

@@ -21,7 +21,7 @@ RSA public key (if present).
 
 ```bash
 helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --versi
-on 3.0.0 --create-namespace
+on 5.0.0 --create-namespace
 ```
 
 this installation has some advantages:
@@ -153,7 +153,7 @@ The E2E tests require a running kubernetes cluster. Currently, the namespace and
 targets. To only run the tests, the following is required:
 
 * docker
-* cosign (v2)
+* cosign (v3)
 
 To run the whole E2E tests, the following steps are required (in order):
 

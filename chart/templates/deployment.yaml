@@ -57,11 +57,11 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            - name: logs
+              mountPath: /tmp
             - name: webhook-certs
               mountPath: /etc/certs
               readOnly: true
-            - name: logs
-              mountPath: /tmp
       initContainers:
       - args:
         - verify
@@ -84,6 +84,9 @@ spec:
           {{- toYaml .Values.initresources | nindent 10 }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 12 }}
+        volumeMounts:
+          - name: logs
+            mountPath: /.sigstore
       - args:
         - verify
         - --insecure-ignore-tlog
@@ -105,6 +108,9 @@ spec:
           {{- toYaml .Values.initresources | nindent 10 }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 12 }}
+        volumeMounts:
+          - name: logs
+            mountPath: /.sigstore
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -8,6 +8,7 @@ type: Opaque
 ---
 apiVersion: v1
 data:
+   # this credentials are wrong because we are not allowed to share keys, also not for demo repos
   .dockerconfigjson: ewogICJhdXRocyI6IHsKICAgICJtdHIuZGV2b3BzLnRlbGVrb20uZGUiOiB7CiAgICAgICJhdXRoIjogIlkyOXphV2R1WkdWdGJ5dHdkV3hzT2psRFFrVmFWMGxYTUUxT05GVkhRa3hRV0ZKTFVGVkVORXRVUWtjNFZ6QkpUbG8xVFRCQldUWlhRMDlEU1RCR01qTlNOekpWVURoWVZWaFRURVZEUzBJPSIsCiAgICAgICJlbWFpbCI6ICIiCiAgICB9CiAgfQp9
 kind: Secret
 metadata:

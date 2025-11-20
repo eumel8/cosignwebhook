@@ -45,7 +45,7 @@ spec:
         - --key
         - env://COSIGNPUBKEY
         - --insecure-ignore-tlog=true
-        - mtr.devops.telekom.de/mcsps/cosign:v2.2.0
+        - ghcr.io/sigstore/cosign/cosign:v3.0.2
         command:
         - cosign
         env:
@@ -55,7 +55,7 @@ spec:
               MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhyQCx0E9wQWSFI9ULGwy3BuRklnt
               IqozONbbdbqz11hlRJy9c7SG+hdcFl9jE9uE/dwtuwU2MqU9T/cN0YkWww==
               -----END PUBLIC KEY-----
-        image: mtr.devops.telekom.de/mcsps/cosign:v2.2.0
+        image: ghcr.io/sigstore/cosign/cosign:v3.0.2
         imagePullPolicy: Always
         name: sigcheckcosign
         resources:
@@ -70,7 +70,7 @@ spec:
         - --key
         - env://COSIGNPUBKEY
         - --insecure-ignore-tlog=true
-        - mtr.devops.telekom.de/caas/cosignwebhook:4.0.5
+        - mtr.devops.telekom.de/caas/cosignwebhook:5.0.0
         command:
         - cosign
         env:
@@ -80,7 +80,7 @@ spec:
               MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENDN3HpXY2weMYRuuJbZnNczrOyns
               ZvVnR15G9EILCH8+elXkYy+4U70mR++XIL0iD8NhZ3kxfpFjxyHlnG5Snw==
               -----END PUBLIC KEY-----
-        image: mtr.devops.telekom.de/mcsps/cosign:v2.2.0
+        image: ghcr.io/sigstore/cosign/cosign:v3.0.2
         imagePullPolicy: Always
         name: sigcheckwebhook
         resources:
@@ -92,7 +92,7 @@ spec:
             memory: 64Mi
       containers:
         - name: cosignwebhook
-          image: mtr.devops.telekom.de/caas/cosignwebhook:4.0.5
+          image: mtr.devops.telekom.de/caas/cosignwebhook:5.0.0
           imagePullPolicy: Always
           args:
             - -logLevel

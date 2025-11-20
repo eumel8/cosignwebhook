@@ -11,11 +11,11 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli/importkeypair"
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
+	"github.com/sigstore/cosign/v3/cmd/cosign/cli/importkeypair"
+	"github.com/sigstore/cosign/v3/cmd/cosign/cli/options"
 
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli"
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli/sign"
+	"github.com/sigstore/cosign/v3/cmd/cosign/cli"
+	"github.com/sigstore/cosign/v3/cmd/cosign/cli/sign"
 )
 
 const ImportKeySuffix = "imported"

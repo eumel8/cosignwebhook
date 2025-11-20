@@ -32,8 +32,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/sigstore/cosign/v2/pkg/cosign"
-	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
+	"github.com/sigstore/cosign/v3/pkg/cosign"
+	ociremote "github.com/sigstore/cosign/v3/pkg/oci/remote"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"

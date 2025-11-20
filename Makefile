@@ -1,4 +1,7 @@
-PORT := 5000
+PORT             := 5000
+BUSYBOX_SRC      := busybox:latest
+BUSYBOX_DIGEST   := $(shell docker inspect --format='{{index .RepoDigests 0}}' $(BUSYBOX_SRC))
+REGISTRY         := k3d-registry.localhost:$(PORT)/busybox
 
 #############
 ### TESTS ###
@@ -41,20 +44,31 @@ e2e-images:
 	@docker push k3d-registry.localhost:$(PORT)/cosignwebhook:dev
 	@echo "Signing test image..."
 	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:$(PORT)/cosignwebhook:dev
+		cosign sign --tlog-upload=false --key cosign.key `docker inspect --format='{{index .RepoDigests 0}}' k3d-registry.localhost:$(PORT)/cosignwebhook:dev`
 	@echo "Importing test image to cluster..."
 	@k3d image import k3d-registry.localhost:$(PORT)/cosignwebhook:dev --cluster cosign-tests
 	@echo "Building busybox image..."
-	@docker pull busybox:latest
-	@echo "Tagging & pushing busybox images..."
-	@docker tag busybox:latest k3d-registry.localhost:$(PORT)/busybox:first
-	@docker tag busybox:latest k3d-registry.localhost:$(PORT)/busybox:second
-	@docker push k3d-registry.localhost:$(PORT)/busybox --all-tags
+	@echo "Pulling busybox..."
+	@docker pull $(BUSYBOX_SRC)
+	@echo "Tagging busybox images..."
+	#@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):first
+	#@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):second
+	@docker tag $(BUSYBOX_SRC) $(REGISTRY):first
+	@docker tag $(BUSYBOX_SRC) $(REGISTRY):second
+	@echo "Pushing busybox images..."
+	@docker push $(REGISTRY) --all-tags
 	@echo "Signing busybox images..."
-	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:$(PORT)/busybox:first && \
-		cosign sign --tlog-upload=false --key cosign.key k3d-registry.localhost:$(PORT)/busybox:first && \
-		cosign sign --tlog-upload=false --key second.key k3d-registry.localhost:$(PORT)/busybox:second
+	@echo "Resolving local registry digests..."
+	FIRST_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):first); \
+	SECOND_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):second); \
+
+	echo "Signing: $$FIRST_DIGEST"; \
+	export COSIGN_PASSWORD=""; \
+	cosign sign --tlog-upload=false --key cosign.key `docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):first`; \
+
+	echo "Signing: $$SECOND_DIGEST"; \
+	export COSIGN_PASSWORD=""; \
+	cosign sign --tlog-upload=false --key second.key `docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):second`
 
 e2e-deploy:
 	@echo "Deploying test image..."
