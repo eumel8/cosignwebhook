@@ -354,7 +354,37 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 	}
 
 	log.Debugf("Verifying image %q with public key %q", image, pubKey)
-	_, _, err = cosign.VerifyImageSignatures(
+
+	newBundles, _, err := cosign.GetBundles(context.Background(), refImage, remoteOpts)
+	if err != nil {
+		log.Debugf("Error getting bundles for image %q, assuming image has old signature digest: %v", image, err)
+	}
+
+	if len(newBundles) > 0 {
+		log.Debugf("Found %d bundles for image %q, verifying with bundled signature", len(newBundles), image)
+
+		verified, _, err := cosign.VerifyImageAttestations(context.Background(), refImage, &cosign.CheckOpts{
+			RegistryClientOpts: remoteOpts,
+			SigVerifier:        verifier,
+			IgnoreSCT:          true,
+			IgnoreTlog:         true,
+		})
+		if err != nil {
+			log.Errorf("Error verifying bundled signature: %v", err)
+			return fmt.Errorf("bundled signature for %q couldn't be verified", image)
+		}
+
+		if log.DebugMode {
+			logVerifiedPayloads(verified, refImage.Name(), image)
+		}
+
+		verifiedProcessed.Inc()
+		log.Infof("Image %q verified successfully with bundled signature", image)
+		return nil
+	}
+
+	log.Debugf("No bundles found for image %q, verifying with old signature digest", image)
+	verified, _, err := cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,
 		&cosign.CheckOpts{
@@ -365,12 +395,16 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 		},
 	)
 	if err != nil {
-		log.Errorf("Error verifying signature: %v", err)
-		return fmt.Errorf("signature for %q couldn't be verified", image)
+		log.Errorf("Error verifying signature digest: %v", err)
+		return fmt.Errorf("signature digest for %q couldn't be verified", image)
+	}
+
+	if log.DebugMode {
+		logVerifiedPayloads(verified, refImage.Name(), image)
 	}
 
 	verifiedProcessed.Inc()
-	log.Infof("Image %q verified successfully", image)
+	log.Infof("Image %q verified successfully with signature digest", image)
 	return nil
 }
 
