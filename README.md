@@ -191,6 +191,7 @@ CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignw
 
 * Bruno Bressi <bruno.bressi@telekom.de>
 * Frank Kloeker <f.kloeker@telekom.de>
+* Maximilian Schubert <maximilian.schubert@telekom.de>
 
 Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull
 request.

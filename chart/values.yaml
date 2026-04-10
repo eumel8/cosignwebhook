@@ -104,9 +104,11 @@ affinity: {}
 # sccosign: verify the cosign cli image itself
 # scwebhook: verify the cosign webhook image
 cosign:
+  # offline mode for air-gapped environments (skips TUF root download)
+  offline: false
   image:
     repository: ghcr.io/sigstore/cosign/cosign
-    tag: v3.0.2
+    tag: v3.0.6
     pullPolicy: IfNotPresent
   sccosign:
     key: |

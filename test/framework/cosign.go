@@ -231,6 +231,7 @@ func (f *Framework) SignContainer(opts SignOptions) {
 	}
 
 	err := sign.SignCmd(
+		context.Background(),
 		&options.RootOptions{
 			Timeout: 30 * time.Second,
 		},

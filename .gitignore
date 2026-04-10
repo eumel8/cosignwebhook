@@ -3,3 +3,4 @@ cosignwebhook
 # required foe e2e test
 *.key
 *.pub
+tmp

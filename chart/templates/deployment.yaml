@@ -67,6 +67,9 @@ spec:
         - verify
         - --insecure-ignore-tlog
         - --insecure-ignore-sct
+        {{- if .Values.cosign.offline }}
+        - --offline
+        {{- end }}
         - --key
         - env://COSIGNPUBKEY
         - {{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}
@@ -91,6 +94,9 @@ spec:
         - verify
         - --insecure-ignore-tlog
         - --insecure-ignore-sct
+        {{- if .Values.cosign.offline }}
+        - --offline
+        {{- end }}
         - --key
         - env://COSIGNPUBKEY
         - {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
