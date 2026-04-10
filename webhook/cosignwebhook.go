@@ -63,7 +63,6 @@ var (
 // generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace cosignwebhook --secret cosignwebhook
 type CosignServerHandler struct {
 	cs kubernetes.Interface
-	kc authn.Keychain
 	eb record.EventBroadcaster
 }
 
@@ -216,21 +215,26 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	kc, err := newKeychainForPod(ctx, pod)
+	log.Debugf("Pod %s/%s: ServiceAccountName=%q, ImagePullSecrets=%v",
+		pod.Namespace, pod.Name, pod.Spec.ServiceAccountName, pod.Spec.ImagePullSecrets)
+
+	// load imagePullSecrets for the pod
+	kc, err := newKeychainForPod(ctx, pod, csh.cs)
 	if err != nil {
 		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
 		return
 	}
-	csh.kc = kc
 
 	signatureChecked := false
+	// loop for init containers
 	for i := range pod.Spec.InitContainers {
+		// load the consign public key
 		pubKey := csh.getPubKeyFor(pod.Spec.InitContainers[i], pod.Namespace)
 		if pubKey == "" {
 			continue
 		}
 
-		err = csh.verifyContainer(pod.Spec.InitContainers[i], pubKey)
+		err = csh.verifyContainer(pod.Spec.InitContainers[i], pubKey, kc)
 		if err != nil {
 			log.Errorf("Error verifying init container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.InitContainers[0].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
@@ -239,12 +243,14 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		signatureChecked = true
 	}
 
+	// look for regular containers
 	for i := range pod.Spec.Containers {
+		// load the consign public key
 		pubKey := csh.getPubKeyFor(pod.Spec.Containers[i], pod.Namespace)
 		if pubKey == "" {
 			continue
 		}
-		err = csh.verifyContainer(pod.Spec.Containers[i], pubKey)
+		err = csh.verifyContainer(pod.Spec.Containers[i], pubKey, kc)
 		if err != nil {
 			log.Errorf("Error verifying container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
@@ -262,7 +268,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // newKeychainForPod builds a new Keychain for the pod
-func newKeychainForPod(ctx context.Context, pod *corev1.Pod) (authn.Keychain, error) {
+func newKeychainForPod(ctx context.Context, pod *corev1.Pod, cs kubernetes.Interface) (authn.Keychain, error) {
 	imagePullSecrets := make([]string, 0, len(pod.Spec.ImagePullSecrets))
 	for _, s := range pod.Spec.ImagePullSecrets {
 		imagePullSecrets = append(imagePullSecrets, s.Name)
@@ -274,7 +280,8 @@ func newKeychainForPod(ctx context.Context, pod *corev1.Pod) (authn.Keychain, er
 		UseMountSecrets:    false,
 	}
 
-	kc, err := k8schain.NewInCluster(ctx, opt)
+	// load the image pull secrets for the pod and create a keychain for authentication to the registry
+	kc, err := k8schain.New(ctx, cs, opt)
 	if err != nil {
 		log.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
 		return nil, err
@@ -310,7 +317,7 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 	// Still no public key, we don't care. Otherwise, POD won't start if we return with 403
 	// In future versions this should block the start of the container
 	if pubKey == "" {
-		log.Debugf("No public key found, returning")
+		log.Debugf("No public key found for container %q, returning", c.Name)
 		return ""
 	}
 
@@ -319,7 +326,7 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 }
 
 // verifyContainer verifies the signature of the container image
-func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey string) error { //nolint:gocritic // better for garbage collection
+func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey string, kc authn.Keychain) error { //nolint:gocritic // better for garbage collection
 	log.Debugf("Verifying container %s", c.Name)
 
 	// Lookup image name of current container
@@ -343,7 +350,7 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 	}
 
 	remoteOpts := []ociremote.Option{
-		ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(csh.kc)),
+		ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc)),
 	}
 	if r := getCosignRepository(c.Env); r != "" {
 		repository, repErr := name.NewRepository(r)
