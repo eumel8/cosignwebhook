@@ -1,7 +1,15 @@
+# PORT is the registry's internal port (always 5000). k3s containerd mirrors
+# are configured against it, so in-cluster image refs use this port.
+# HOST_PORT is the host-side mapping into the registry container. On macOS,
+# port 5000 is taken by AirPlay Receiver, so shell.nix overrides it to 5100.
 PORT             := 5000
+HOST_PORT        ?= 5000
 BUSYBOX_SRC      := busybox:latest
 BUSYBOX_DIGEST   := $(shell docker inspect --format='{{index .RepoDigests 0}}' $(BUSYBOX_SRC))
-REGISTRY         := k3d-registry.localhost:$(PORT)/busybox
+HOST_REGISTRY    := k3d-registry.localhost:$(HOST_PORT)
+CLUSTER_REGISTRY := k3d-registry.localhost:$(PORT)
+COSIGN           ?= cosign-v3
+SIGNING_CONFIG   := test/framework/signing-config.json
 
 #############
 ### TESTS ###
@@ -10,7 +18,7 @@ REGISTRY         := k3d-registry.localhost:$(PORT)/busybox
 .PHONY: test-e2e
 test-e2e:
 	@echo "Running e2e tests..."
-	@export COSIGN_E2E="42" && go test -v -race -count 1 ./test/
+	@export COSIGN_E2E="42" && export REGISTRY_PORT="$(HOST_PORT)" && go test -v -race -count 1 ./test/
 
 .PHONY: test-unit
 test-unit:
@@ -23,57 +31,51 @@ test-unit:
 
 e2e-cluster:
 	@echo "Creating registry..."
-	@k3d registry create registry.localhost --port $(PORT)
+	@k3d registry create registry.localhost --port $(HOST_PORT)
 	@echo "Adding registry to cluster..."
-	@uname -m | grep -q 'Darwin' && export K3D_FIX_DNS=0; k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(PORT)
+	@uname -m | grep -q 'Darwin' && export K3D_FIX_DNS=0; k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(HOST_PORT)
 	@echo "Create test namespace..."
 	@kubectl create namespace test-cases
 
 e2e-keys:
 	@echo "Generating cosign keys..."
 	@export COSIGN_PASSWORD="" && \
-	 cosign generate-key-pair && \
-	 cosign generate-key-pair --output-key-prefix second
+	 $(COSIGN) generate-key-pair && \
+	 $(COSIGN) generate-key-pair --output-key-prefix second
 
 e2e-images:
 	@echo "Checking for cosign.key..."
 	@test -f cosign.key || (echo "cosign.key not found. Run 'make e2e-keys' to generate the pairs needed for the tests." && exit 1)
 	@echo "Building test image..."
-	@docker build -t k3d-registry.localhost:$(PORT)/cosignwebhook:dev .
+	@docker build -t $(HOST_REGISTRY)/cosignwebhook:dev .
 	@echo "Pushing test image..."
-	@docker push k3d-registry.localhost:$(PORT)/cosignwebhook:dev
+	@docker push $(HOST_REGISTRY)/cosignwebhook:dev
 	@echo "Signing test image..."
 	@export COSIGN_PASSWORD="" && \
-		cosign sign --tlog-upload=false --key cosign.key `docker inspect --format='{{index .RepoDigests 0}}' k3d-registry.localhost:$(PORT)/cosignwebhook:dev`
+		$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key `docker inspect --format='{{index .RepoDigests 0}}' $(HOST_REGISTRY)/cosignwebhook:dev`
 	@echo "Importing test image to cluster..."
-	@k3d image import k3d-registry.localhost:$(PORT)/cosignwebhook:dev --cluster cosign-tests
-	@echo "Building busybox image..."
+	@k3d image import $(HOST_REGISTRY)/cosignwebhook:dev --cluster cosign-tests
 	@echo "Pulling busybox..."
 	@docker pull $(BUSYBOX_SRC)
 	@echo "Tagging busybox images..."
-	#@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):first
-	#@docker tag $(BUSYBOX_DIGEST) $(REGISTRY):second
-	@docker tag $(BUSYBOX_SRC) $(REGISTRY):first
-	@docker tag $(BUSYBOX_SRC) $(REGISTRY):second
+	@docker tag $(BUSYBOX_SRC) $(HOST_REGISTRY)/busybox:first
+	@docker tag $(BUSYBOX_SRC) $(HOST_REGISTRY)/busybox:second
 	@echo "Pushing busybox images..."
-	@docker push $(REGISTRY) --all-tags
+	@docker push $(HOST_REGISTRY)/busybox --all-tags
 	@echo "Signing busybox images..."
-	@echo "Resolving local registry digests..."
-	FIRST_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):first); \
-	SECOND_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):second); \
-
-	echo "Signing: $$FIRST_DIGEST"; \
+	FIRST_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:first); \
+	SECOND_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:second); \
+	echo "Signing first: $$FIRST_DIGEST"; \
 	export COSIGN_PASSWORD=""; \
-	cosign sign --tlog-upload=false --key cosign.key `docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):first`; \
-
-	echo "Signing: $$SECOND_DIGEST"; \
+	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key `docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:first`; \
+	echo "Signing second: $$SECOND_DIGEST"; \
 	export COSIGN_PASSWORD=""; \
-	cosign sign --tlog-upload=false --key second.key `docker inspect --format='{{index .RepoDigests 1}}' $(REGISTRY):second`
+	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key second.key `docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:second`
 
 e2e-deploy:
 	@echo "Deploying test image..."
 	@helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
-		--set image.repository=k3d-registry.localhost:$(PORT)/cosignwebhook \
+		--set image.repository=$(CLUSTER_REGISTRY)/cosignwebhook \
 		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
 		--set logLevel=debug \
