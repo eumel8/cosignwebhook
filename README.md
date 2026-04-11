@@ -14,8 +14,16 @@ Kubernetes Validation Admission Controller to verify Cosign Image signatures.
 
 <img src="cosignwebhook.png" alt="cosignwebhook" width="680"/>
 
-This webhook watches for pod creation in deployments and verifies all container image it finds with an existing
-RSA public key (if present).
+This webhook watches for pod creation in deployments and verifies all container images using a
+public key (ECDSA or RSA), if present.
+
+It supports two signature formats:
+
+- **Sigstore bundle format** (cosign v3 with `--new-bundle-format`) — signatures stored as OCI referrers
+- **Legacy tag-based format** (cosign v2 / v3 default) — signatures stored as `sha256-<digest>.sig` tags
+
+The webhook tries bundle verification first, then falls back to legacy automatically.
+No re-signing is needed when upgrading from cosign v2 to v3.
 
 # Installation with Helm
 
@@ -75,6 +83,10 @@ env:
 This option is similar to the `COSIGN_REPOSITORY` environment variable used with `cosign verify` and `cosign sign`
 command line tool and is used to specify the repository where the signature of the image is located, if it's not in the
 same repository as the image.
+
+> **Note:** `COSIGN_REPOSITORY` only applies to legacy tag-based signatures. The new sigstore bundle format
+> (OCI referrers) always stores signatures on the image's own repository, so `COSIGN_REPOSITORY` has no effect
+> for bundle-format signatures.
 
 ### Public key as environment variable
 
