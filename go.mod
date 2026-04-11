@@ -9,6 +9,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/sigstore/cosign/v3 v3.0.2
 	github.com/sigstore/sigstore v1.9.6-0.20250729224751-181c5d3339b3
+	github.com/sigstore/sigstore-go v1.1.3
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/client-go v0.34.1
@@ -211,7 +212,6 @@ require (
 	github.com/sigstore/rekor v1.4.2 // indirect
 	github.com/sigstore/rekor-tiles v0.1.11 // indirect
 	github.com/sigstore/rekor-tiles/v2 v2.0.0-rc2 // indirect
-	github.com/sigstore/sigstore-go v1.1.3 // indirect
 	github.com/sigstore/timestamp-authority v1.2.9 // indirect
 	github.com/sirupsen/logrus v1.9.4-0.20230606125235-dd1b4c2e81af // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect

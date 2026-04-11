@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,6 +35,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sigstore/cosign/v3/pkg/cosign"
 	ociremote "github.com/sigstore/cosign/v3/pkg/oci/remote"
+	"github.com/sigstore/sigstore-go/pkg/root"
+	"github.com/sigstore/sigstore-go/pkg/verify"
 
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	"github.com/sigstore/sigstore/pkg/signature"
@@ -319,11 +322,12 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 	return pubKey
 }
 
-// verifyContainer verifies the signature of the container image
+// verifyContainer verifies the signature of the container image.
+// It first attempts verification using the new sigstore bundle format
+// (OCI referrers), then falls back to legacy cosign signature tags.
 func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey string, kc authn.Keychain) error { //nolint:gocritic // better for garbage collection
 	log.Debugf("Verifying container %s", c.Name)
 
-	// Lookup image name of current container
 	image := c.Image
 	refImage, err := name.ParseReference(image)
 	if err != nil {
@@ -331,7 +335,6 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 		return fmt.Errorf("could parse image reference for image %q", image)
 	}
 
-	// Encrypt public key
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey([]byte(pubKey))
 	if err != nil {
 		log.Errorf("Error unmarshalling public key: %v", err)
@@ -357,8 +360,17 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 	}
 
 	log.Debugf("Verifying image %q with public key %q", image, pubKey)
+
+	ctx := context.Background()
+	if err := csh.verifyBundleSignature(ctx, refImage, verifier, remoteOpts); err == nil {
+		verifiedProcessed.Inc()
+		log.Infof("Image %q verified successfully (bundle format)", image)
+		return nil
+	}
+
+	log.Debugf("No valid bundle signature found for %q, trying legacy format", image)
 	_, _, err = cosign.VerifyImageSignatures(
-		context.Background(),
+		ctx,
 		refImage,
 		&cosign.CheckOpts{
 			RegistryClientOpts: remoteOpts,
@@ -373,8 +385,44 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 	}
 
 	verifiedProcessed.Inc()
-	log.Infof("Image %q verified successfully", image)
+	log.Infof("Image %q verified successfully (legacy format)", image)
 	return nil
+}
+
+// verifyBundleSignature verifies a sigstore bundle attached as an OCI referrer.
+func (csh *CosignServerHandler) verifyBundleSignature(ctx context.Context, ref name.Reference, sigVerifier signature.Verifier, remoteOpts []ociremote.Option) error {
+	co := &cosign.CheckOpts{
+		RegistryClientOpts: remoteOpts,
+	}
+
+	bundles, hash, err := cosign.GetBundles(ctx, ref, co)
+	if err != nil {
+		return fmt.Errorf("fetching bundles: %w", err)
+	}
+
+	digestBytes, err := hex.DecodeString(hash.Hex)
+	if err != nil {
+		return fmt.Errorf("decoding digest hex: %w", err)
+	}
+
+	keyMaterial := root.NewTrustedPublicKeyMaterial(func(_ string) (root.TimeConstrainedVerifier, error) {
+		return root.NewExpiringKey(sigVerifier, time.Time{}, time.Time{}), nil
+	})
+
+	v, err := verify.NewVerifier(keyMaterial, verify.WithNoObserverTimestamps())
+	if err != nil {
+		return fmt.Errorf("creating verifier: %w", err)
+	}
+
+	policy := verify.NewPolicy(verify.WithArtifactDigest(hash.Algorithm, digestBytes), verify.WithKey())
+
+	for _, bundle := range bundles {
+		if _, err := v.Verify(bundle, policy); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no bundle verified successfully")
 }
 
 // newVerifierForKey creates a new signature verifier for the given public key.
