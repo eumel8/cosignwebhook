@@ -8,17 +8,24 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"time"
 
+	"github.com/sigstore/cosign/v3/cmd/cosign/cli"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/importkeypair"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/options"
-
-	"github.com/sigstore/cosign/v3/cmd/cosign/cli"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/sign"
+	"github.com/sigstore/sigstore-go/pkg/root"
 )
 
 const ImportKeySuffix = "imported"
+
+func signingConfigPath() string {
+	_, thisFile, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(thisFile), "signing-config.json")
+}
 
 // Pub contains the public key and its path
 type Pub struct {
@@ -37,6 +44,7 @@ type SignOptions struct {
 	KeyPath       string
 	Image         string
 	SignatureRepo string
+	LegacyFormat  bool
 }
 
 // KeyFunc is a function that generates a keypair by using the testing framework
@@ -195,18 +203,39 @@ func (f *Framework) SignContainer(opts SignOptions) {
 	if opts.SignatureRepo != opts.Image {
 		f.t.Setenv("COSIGN_REPOSITORY", opts.SignatureRepo)
 	}
+
+	var keyOpts options.KeyOpts
+	var signOpts options.SignOptions
+
+	keyOpts = options.KeyOpts{
+		KeyRef: opts.KeyPath,
+	}
+	signOpts = options.SignOptions{
+		Key:    opts.KeyPath,
+		Upload: true,
+		Registry: options.RegistryOptions{
+			AllowHTTPRegistry: true,
+		},
+	}
+
+	if opts.LegacyFormat {
+		signOpts.TlogUpload = false
+	} else {
+		sc, err := root.NewSigningConfigFromPath(signingConfigPath())
+		if err != nil {
+			f.err = fmt.Errorf("failed to load signing config: %v", err)
+			return
+		}
+		keyOpts.SigningConfig = sc
+		signOpts.NewBundleFormat = true
+	}
+
 	err := sign.SignCmd(
 		&options.RootOptions{
 			Timeout: 30 * time.Second,
 		},
-		options.KeyOpts{
-			KeyRef: opts.KeyPath,
-		},
-		options.SignOptions{
-			Key:        opts.KeyPath,
-			TlogUpload: false,
-			Upload:     true,
-		},
+		keyOpts,
+		signOpts,
 		[]string{opts.Image},
 	)
 	if err != nil {
