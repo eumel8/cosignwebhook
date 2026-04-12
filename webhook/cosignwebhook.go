@@ -218,7 +218,6 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Pod %s/%s: ServiceAccountName=%q, ImagePullSecrets=%v",
 		pod.Namespace, pod.Name, pod.Spec.ServiceAccountName, pod.Spec.ImagePullSecrets)
 
-	// load imagePullSecrets for the pod
 	kc, err := newKeychainForPod(ctx, pod, csh.cs)
 	if err != nil {
 		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
@@ -226,9 +225,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	signatureChecked := false
-	// loop for init containers
 	for i := range pod.Spec.InitContainers {
-		// load the consign public key
 		pubKey := csh.getPubKeyFor(pod.Spec.InitContainers[i], pod.Namespace)
 		if pubKey == "" {
 			continue
@@ -243,9 +240,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		signatureChecked = true
 	}
 
-	// look for regular containers
 	for i := range pod.Spec.Containers {
-		// load the consign public key
 		pubKey := csh.getPubKeyFor(pod.Spec.Containers[i], pod.Namespace)
 		if pubKey == "" {
 			continue
@@ -280,7 +275,6 @@ func newKeychainForPod(ctx context.Context, pod *corev1.Pod, cs kubernetes.Inter
 		UseMountSecrets:    false,
 	}
 
-	// load the image pull secrets for the pod and create a keychain for authentication to the registry
 	kc, err := k8schain.New(ctx, cs, opt)
 	if err != nil {
 		log.Errorf("Error intializing k8schain %s/%s: %v", pod.Namespace, pod.Name, err)
