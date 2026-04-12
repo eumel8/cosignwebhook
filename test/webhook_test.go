@@ -16,14 +16,14 @@ import (
 var terminationGracePeriodSeconds int64 = 3
 
 var (
-	hostRegistry       string
-	clusterRegistry    string
-	busyboxOne         string
-	busyboxTwo         string
-	signatureRepo      string
-	hostBusyboxOne     string
-	hostBusyboxTwo     string
-	hostSignatureRepo  string
+	hostRegistry      string
+	clusterRegistry   string
+	busyboxOne        string
+	busyboxTwo        string
+	signatureRepo     string
+	hostBusyboxOne    string
+	hostBusyboxTwo    string
+	hostSignatureRepo string
 )
 
 func init() {
