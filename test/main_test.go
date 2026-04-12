@@ -35,10 +35,10 @@ func TestPassECDSA(t *testing.T) {
 // TestFailingDeployments tests deployments that should fail signature verification
 func TestFailingDeployments(t *testing.T) {
 	testFuncs := map[string]func(fw *framework.Framework, kf framework.KeyFunc, key string) func(t *testing.T){
-		"OneContainerSinglePubKeyMalformedEnvRef":       testOneContainerSinglePubKeyMalformedEnvRef,
-		"TwoContainersSinglePubKeyMalformedEnvRef":      testTwoContainersSinglePubKeyMalformedEnvRef,
-		"OneContainerSinglePubKeyNoMatchEnvRef":         testOneContainerSinglePubKeyNoMatchEnvRef,
-		"OneContainerWithCosingRepoVariableMissing":     testOneContainerWithCosingRepoVariableMissing,
+		"OneContainerSinglePubKeyMalformedEnvRef":   testOneContainerSinglePubKeyMalformedEnvRef,
+		"TwoContainersSinglePubKeyMalformedEnvRef":  testTwoContainersSinglePubKeyMalformedEnvRef,
+		"OneContainerSinglePubKeyNoMatchEnvRef":     testOneContainerSinglePubKeyNoMatchEnvRef,
+		"OneContainerWithCosingRepoVariableMissing": testOneContainerWithCosingRepoVariableMissing,
 	}
 
 	fw, err := framework.New(t)
