@@ -357,7 +357,7 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 
 	newBundles, _, err := cosign.GetBundles(context.Background(), refImage, remoteOpts)
 	if err != nil {
-		log.Debugf("Error getting bundles for image %q, assuming image has old signature digest: %v", image, err)
+		log.Debugf("Error getting bundles for image %q, assuming image has legacy signature digest: %v", image, err)
 	}
 
 	if len(newBundles) > 0 {
@@ -384,7 +384,7 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 		return nil
 	}
 
-	log.Debugf("No bundles found for image %q, verifying with old signature digest", image)
+	log.Debugf("No bundles found for image %q, verifying with legacy signature digest", image)
 	verified, _, err := cosign.VerifyImageSignatures(
 		context.Background(),
 		refImage,

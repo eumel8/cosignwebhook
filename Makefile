@@ -66,8 +66,7 @@ e2e-cluster:
 e2e-keys:
 	@echo "Generating cosign keys..."
 	@export COSIGN_PASSWORD="" && \
-	 $(COSIGN) generate-key-pair && \
-	 $(COSIGN) generate-key-pair --output-key-prefix second
+	 $(COSIGN) generate-key-pair
 
 # e2e-images: Full Docker build (for CI)
 e2e-images:
@@ -92,20 +91,10 @@ _e2e-images-common:
 		$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key `docker inspect --format='{{index .RepoDigests 0}}' $(HOST_REGISTRY)/$(BINARY):dev`
 	@echo "Importing test image to cluster..."
 	@k3d image import $(HOST_REGISTRY)/$(BINARY):dev --cluster cosign-tests
-	@echo "Pulling busybox..."
+	@echo "Pulling and pushing busybox base image..."
 	@docker pull $(BUSYBOX_SRC)
-	@echo "Building distinct busybox images..."
-	@echo 'FROM $(BUSYBOX_SRC)' | docker build --label="variant=first" -t $(HOST_REGISTRY)/busybox:first -
-	@echo 'FROM $(BUSYBOX_SRC)' | docker build --label="variant=second" -t $(HOST_REGISTRY)/busybox:second -
-	@echo "Pushing and signing busybox images..."
-	@FIRST_DIGEST=$$(docker push $(HOST_REGISTRY)/busybox:first 2>&1 | grep -oP 'digest: \Ksha256:[a-f0-9]+'); \
-	SECOND_DIGEST=$$(docker push $(HOST_REGISTRY)/busybox:second 2>&1 | grep -oP 'digest: \Ksha256:[a-f0-9]+'); \
-	echo "Signing first: $(HOST_REGISTRY)/busybox@$$FIRST_DIGEST"; \
-	export COSIGN_PASSWORD=""; \
-	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key $(HOST_REGISTRY)/busybox@$$FIRST_DIGEST; \
-	echo "Signing second: $(HOST_REGISTRY)/busybox@$$SECOND_DIGEST"; \
-	export COSIGN_PASSWORD=""; \
-	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key second.key $(HOST_REGISTRY)/busybox@$$SECOND_DIGEST
+	@docker tag $(BUSYBOX_SRC) $(HOST_REGISTRY)/busybox:latest
+	@docker push $(HOST_REGISTRY)/busybox:latest
 
 e2e-deploy:
 	@echo "Deploying test image..."
@@ -129,7 +118,7 @@ e2e-cleanup:
 	@k3d registry delete registry.localhost || echo "Deleting k3d registry failed. Continuing..."
 	@helm uninstall cosignwebhook -n cosignwebhook || echo "Uninstalling cosignwebhook helm release failed. Continuing..."
 	@k3d cluster delete cosign-tests || echo "Deleting cosign tests k3d cluster failed. Continuing..."
-	@rm -f cosign.pub cosign.key second.pub second.key || echo "Removing files failed. Continuing..."
+	@rm -f cosign.pub cosign.key || echo "Removing files failed. Continuing..."
 	@echo "Done."
 
 #############
