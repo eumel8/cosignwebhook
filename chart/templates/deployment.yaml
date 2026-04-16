@@ -67,9 +67,6 @@ spec:
         - verify
         - --insecure-ignore-tlog
         - --insecure-ignore-sct
-        {{- if .Values.cosign.offline }}
-        - --offline
-        {{- end }}
         - --key
         - env://COSIGNPUBKEY
         - {{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}
@@ -80,6 +77,14 @@ spec:
           value: {{- toYaml .Values.cosign.sccosign.key | indent 12 }}
         - name: SIGSTORE_NO_CACHE
           value: "true"
+        {{- if .Values.proxy.enabled }}
+        - name: HTTP_PROXY
+          value: {{ .Values.proxy.httpProxy | quote }}
+        - name: HTTPS_PROXY
+          value: {{ .Values.proxy.httpsProxy | quote }}
+        - name: NO_PROXY
+          value: {{ .Values.proxy.noProxy | quote }}
+        {{- end }}
         image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
         imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
         name: sccosign
@@ -94,9 +99,6 @@ spec:
         - verify
         - --insecure-ignore-tlog
         - --insecure-ignore-sct
-        {{- if .Values.cosign.offline }}
-        - --offline
-        {{- end }}
         - --key
         - env://COSIGNPUBKEY
         - {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
@@ -107,6 +109,14 @@ spec:
           value: {{- toYaml .Values.cosign.scwebhook.key | indent 12 }}
         - name: SIGSTORE_NO_CACHE
           value: "true"
+        {{- if .Values.proxy.enabled }}
+        - name: HTTP_PROXY
+          value: {{ .Values.proxy.httpProxy | quote }}
+        - name: HTTPS_PROXY
+          value: {{ .Values.proxy.httpsProxy | quote }}
+        - name: NO_PROXY
+          value: {{ .Values.proxy.noProxy | quote }}
+        {{- end }}
         image: "{{ .Values.cosign.image.repository }}:{{ .Values.cosign.image.tag }}"
         imagePullPolicy: {{ .Values.cosign.image.pullPolicy }}
         name: scwebhook

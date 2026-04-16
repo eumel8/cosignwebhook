@@ -100,12 +100,17 @@ tolerations: []
 
 affinity: {}
 
+# proxy configuration for outbound connections
+proxy:
+  enabled: false
+  httpProxy: ""
+  httpsProxy: ""
+  noProxy: ""
+
 # verify all images before usage
 # sccosign: verify the cosign cli image itself
 # scwebhook: verify the cosign webhook image
 cosign:
-  # offline mode for air-gapped environments (skips TUF root download)
-  offline: false
   image:
     repository: ghcr.io/sigstore/cosign/cosign
     tag: v3.0.6
