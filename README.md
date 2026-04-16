@@ -28,8 +28,7 @@ No re-signing is needed when upgrading from cosign v2 to v3.
 # Installation with Helm
 
 ```bash
-helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --versi
-on 5.0.0 --create-namespace
+helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --version 5.1.0 --create-namespace
 ```
 
 this installation has some advantages:
