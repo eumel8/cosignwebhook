@@ -368,6 +368,7 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 			SigVerifier:        verifier,
 			IgnoreSCT:          true,
 			IgnoreTlog:         true,
+			NewBundleFormat:    true,
 		})
 		if err != nil {
 			log.Errorf("Error verifying bundled signature: %v", err)
