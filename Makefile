@@ -10,6 +10,26 @@ HOST_REGISTRY    := k3d-registry.localhost:$(HOST_PORT)
 CLUSTER_REGISTRY := k3d-registry.localhost:$(PORT)
 COSIGN           ?= cosign-v3
 SIGNING_CONFIG   := test/framework/signing-config.json
+BINARY           := cosignwebhook
+
+#############
+### BUILD ###
+#############
+
+.PHONY: build
+build:
+	@echo "Building binary locally..."
+	@CGO_ENABLED=0 GOOS=linux go build -o $(BINARY) .
+
+.PHONY: build-image
+build-image: build
+	@echo "Building dev image with local binary..."
+	@docker build -f Dockerfile.dev -t $(HOST_REGISTRY)/$(BINARY):dev .
+
+.PHONY: build-image-full
+build-image-full:
+	@echo "Building image with full Dockerfile..."
+	@docker build -t $(HOST_REGISTRY)/$(BINARY):dev .
 
 #############
 ### TESTS ###
@@ -32,8 +52,14 @@ test-unit:
 e2e-cluster:
 	@echo "Creating registry..."
 	@k3d registry create registry.localhost --port $(HOST_PORT)
-	@echo "Adding registry to cluster..."
-	@uname -m | grep -q 'Darwin' && export K3D_FIX_DNS=0; k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(HOST_PORT)
+	@echo "Creating cluster..."
+	@uname -m | grep -q 'Darwin' && export K3D_FIX_DNS=0; \
+	if [ -f env/k3d-config.yaml ]; then \
+		echo "Using k3d config from env/k3d-config.yaml"; \
+		k3d cluster create --config env/k3d-config.yaml; \
+	else \
+		k3d cluster create cosign-tests --registry-use k3d-registry.localhost:$(HOST_PORT); \
+	fi
 	@echo "Create test namespace..."
 	@kubectl create namespace test-cases
 
@@ -43,45 +69,60 @@ e2e-keys:
 	 $(COSIGN) generate-key-pair && \
 	 $(COSIGN) generate-key-pair --output-key-prefix second
 
+# e2e-images: Full Docker build (for CI)
 e2e-images:
 	@echo "Checking for cosign.key..."
 	@test -f cosign.key || (echo "cosign.key not found. Run 'make e2e-keys' to generate the pairs needed for the tests." && exit 1)
-	@echo "Building test image..."
-	@docker build -t $(HOST_REGISTRY)/cosignwebhook:dev .
+	@echo "Building test image (full build)..."
+	@docker build -t $(HOST_REGISTRY)/$(BINARY):dev .
+	@$(MAKE) _e2e-images-common
+
+# e2e-images-dev: Fast local build (for development)
+e2e-images-dev: build-image
+	@echo "Checking for cosign.key..."
+	@test -f cosign.key || (echo "cosign.key not found. Run 'make e2e-keys' to generate the pairs needed for the tests." && exit 1)
+	@$(MAKE) _e2e-images-common
+
+# Common image tasks (push, sign, busybox setup)
+_e2e-images-common:
 	@echo "Pushing test image..."
-	@docker push $(HOST_REGISTRY)/cosignwebhook:dev
+	@docker push $(HOST_REGISTRY)/$(BINARY):dev
 	@echo "Signing test image..."
 	@export COSIGN_PASSWORD="" && \
-		$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key `docker inspect --format='{{index .RepoDigests 0}}' $(HOST_REGISTRY)/cosignwebhook:dev`
+		$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key `docker inspect --format='{{index .RepoDigests 0}}' $(HOST_REGISTRY)/$(BINARY):dev`
 	@echo "Importing test image to cluster..."
-	@k3d image import $(HOST_REGISTRY)/cosignwebhook:dev --cluster cosign-tests
+	@k3d image import $(HOST_REGISTRY)/$(BINARY):dev --cluster cosign-tests
 	@echo "Pulling busybox..."
 	@docker pull $(BUSYBOX_SRC)
-	@echo "Tagging busybox images..."
-	@docker tag $(BUSYBOX_SRC) $(HOST_REGISTRY)/busybox:first
-	@docker tag $(BUSYBOX_SRC) $(HOST_REGISTRY)/busybox:second
-	@echo "Pushing busybox images..."
-	@docker push $(HOST_REGISTRY)/busybox --all-tags
-	@echo "Signing busybox images..."
-	FIRST_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:first); \
-	SECOND_DIGEST=$$(docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:second); \
-	echo "Signing first: $$FIRST_DIGEST"; \
+	@echo "Building distinct busybox images..."
+	@echo 'FROM $(BUSYBOX_SRC)' | docker build --label="variant=first" -t $(HOST_REGISTRY)/busybox:first -
+	@echo 'FROM $(BUSYBOX_SRC)' | docker build --label="variant=second" -t $(HOST_REGISTRY)/busybox:second -
+	@echo "Pushing and signing busybox images..."
+	@FIRST_DIGEST=$$(docker push $(HOST_REGISTRY)/busybox:first 2>&1 | grep -oP 'digest: \Ksha256:[a-f0-9]+'); \
+	SECOND_DIGEST=$$(docker push $(HOST_REGISTRY)/busybox:second 2>&1 | grep -oP 'digest: \Ksha256:[a-f0-9]+'); \
+	echo "Signing first: $(HOST_REGISTRY)/busybox@$$FIRST_DIGEST"; \
 	export COSIGN_PASSWORD=""; \
-	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key `docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:first`; \
-	echo "Signing second: $$SECOND_DIGEST"; \
+	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key cosign.key $(HOST_REGISTRY)/busybox@$$FIRST_DIGEST; \
+	echo "Signing second: $(HOST_REGISTRY)/busybox@$$SECOND_DIGEST"; \
 	export COSIGN_PASSWORD=""; \
-	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key second.key `docker inspect --format='{{index .RepoDigests 1}}' $(HOST_REGISTRY)/busybox:second`
+	$(COSIGN) sign --signing-config=$(SIGNING_CONFIG) --allow-http-registry --allow-insecure-registry --key second.key $(HOST_REGISTRY)/busybox@$$SECOND_DIGEST
 
 e2e-deploy:
 	@echo "Deploying test image..."
-	@helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
+	@HELM_VALUES=""; \
+	if [ -f env/dev.values.yaml ]; then \
+		echo "Using values from env/dev.values.yaml"; \
+		HELM_VALUES="-f env/dev.values.yaml"; \
+	fi; \
+	helm upgrade -i cosignwebhook chart -n cosignwebhook --create-namespace \
+		$$HELM_VALUES \
 		--set image.repository=$(CLUSTER_REGISTRY)/cosignwebhook \
 		--set image.tag=dev \
 		--set-file cosign.scwebhook.key=cosign.pub \
 		--set logLevel=debug \
 		--wait --debug --atomic
 
-e2e-prep: e2e-cluster e2e-keys e2e-images e2e-deploy
+e2e-prep: e2e-cluster e2e-keys e2e-images-dev e2e-deploy
 
 e2e-cleanup:
 	@echo "Cleaning up test env..."

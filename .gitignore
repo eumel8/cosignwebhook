@@ -4,3 +4,4 @@ cosignwebhook
 *.key
 *.pub
 tmp
+env/
