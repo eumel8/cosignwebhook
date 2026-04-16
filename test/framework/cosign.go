@@ -11,8 +11,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	optionsV2 "github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
+	signV2 "github.com/sigstore/cosign/v2/cmd/cosign/cli/sign"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/importkeypair"
 	"github.com/sigstore/cosign/v3/cmd/cosign/cli/options"
@@ -21,6 +27,87 @@ import (
 )
 
 const ImportKeySuffix = "imported"
+
+// TestImage holds both the host and cluster image references for a test image
+type TestImage struct {
+	Host    string // Image reference for signing (host registry port)
+	Cluster string // Image reference for deployment (cluster registry port)
+}
+
+// CreateTestImage creates a unique test image for a test case by copying the base image
+// and adding a unique label. This ensures each test case has its own image with no signature conflicts.
+func (f *Framework) CreateTestImage(baseImage, testName string) TestImage {
+	if f.err != nil {
+		return TestImage{}
+	}
+
+	// Sanitize test name for use as tag (lowercase, replace spaces/special chars)
+	tag := strings.ToLower(testName)
+	tag = strings.ReplaceAll(tag, " ", "-")
+	tag = strings.ReplaceAll(tag, "_", "-")
+
+	// Extract registry from base image
+	parts := strings.Split(baseImage, "/")
+	registry := parts[0]
+
+	// Create new image reference with test-specific tag
+	newImage := fmt.Sprintf("%s/busybox:%s", registry, tag)
+
+	// Pull the source image
+	srcRef, err := name.ParseReference(baseImage, name.Insecure)
+	if err != nil {
+		f.err = fmt.Errorf("failed to parse source image reference: %v", err)
+		return TestImage{}
+	}
+
+	img, err := crane.Pull(baseImage, crane.Insecure)
+	if err != nil {
+		f.err = fmt.Errorf("failed to pull base image: %v", err)
+		return TestImage{}
+	}
+
+	// Get current config and add label
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		f.err = fmt.Errorf("failed to get image config: %v", err)
+		return TestImage{}
+	}
+
+	if cfg.Config.Labels == nil {
+		cfg.Config.Labels = make(map[string]string)
+	}
+	cfg.Config.Labels["testcase"] = testName
+
+	// Mutate image with new config
+	img, err = mutate.ConfigFile(img, cfg)
+	if err != nil {
+		f.err = fmt.Errorf("failed to mutate image config: %v", err)
+		return TestImage{}
+	}
+
+	// Push the new image
+	dstRef, err := name.ParseReference(newImage, name.Insecure)
+	if err != nil {
+		f.err = fmt.Errorf("failed to parse destination image reference: %v", err)
+		return TestImage{}
+	}
+
+	err = crane.Push(img, dstRef.String(), crane.Insecure)
+	if err != nil {
+		f.err = fmt.Errorf("failed to push test image: %v", err)
+		return TestImage{}
+	}
+
+	f.t.Logf("Created test image %s from %s for test %s", newImage, srcRef, testName)
+
+	// Build cluster image reference (always port 5000 inside cluster)
+	clusterImage := fmt.Sprintf("k3d-registry.localhost:5000/busybox:%s", tag)
+
+	return TestImage{
+		Host:    newImage,
+		Cluster: clusterImage,
+	}
+}
 
 func signingConfigPath() string {
 	_, thisFile, _, _ := runtime.Caller(0)
@@ -204,39 +291,53 @@ func (f *Framework) SignContainer(opts SignOptions) {
 		f.t.Setenv("COSIGN_REPOSITORY", opts.SignatureRepo)
 	}
 
-	var keyOpts options.KeyOpts
-	var signOpts options.SignOptions
-
-	keyOpts = options.KeyOpts{
-		KeyRef: opts.KeyPath,
-	}
-	signOpts = options.SignOptions{
-		Key:    opts.KeyPath,
-		Upload: true,
-		Registry: options.RegistryOptions{
-			AllowHTTPRegistry: true,
-		},
-	}
-
 	if opts.LegacyFormat {
-		signOpts.TlogUpload = false
-	} else {
-		sc, err := root.NewSigningConfigFromPath(signingConfigPath())
+		err := signV2.SignCmd(
+			&optionsV2.RootOptions{
+				Timeout: 30 * time.Second,
+			},
+			optionsV2.KeyOpts{
+				KeyRef: opts.KeyPath,
+			},
+			optionsV2.SignOptions{
+				Key:        opts.KeyPath,
+				TlogUpload: false,
+				Upload:     true,
+				Registry: optionsV2.RegistryOptions{
+					AllowHTTPRegistry: true,
+				},
+			},
+			[]string{opts.Image},
+		)
 		if err != nil {
-			f.err = fmt.Errorf("failed to load signing config: %v", err)
-			return
+			f.err = fmt.Errorf("failed to sign container: %v", err)
 		}
-		keyOpts.SigningConfig = sc
-		signOpts.NewBundleFormat = true
+		return
 	}
 
-	err := sign.SignCmd(
+	sc, err := root.NewSigningConfigFromPath(signingConfigPath())
+	if err != nil {
+		f.err = fmt.Errorf("failed to load signing config: %v", err)
+		return
+	}
+
+	err = sign.SignCmd(
 		context.Background(),
 		&options.RootOptions{
 			Timeout: 30 * time.Second,
 		},
-		keyOpts,
-		signOpts,
+		options.KeyOpts{
+			SigningConfig: sc,
+			KeyRef:        opts.KeyPath,
+		},
+		options.SignOptions{
+			Key:             opts.KeyPath,
+			NewBundleFormat: true,
+			Upload:          true,
+			Registry: options.RegistryOptions{
+				AllowHTTPRegistry: true,
+			},
+		},
 		[]string{opts.Image},
 	)
 	if err != nil {

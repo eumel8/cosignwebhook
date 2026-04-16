@@ -18,7 +18,9 @@ func TestPassECDSA(t *testing.T) {
 		"TwoContainersSingleWithInitPubKeyMixedRef": testTwoContainersWithInitSinglePubKeyMixedRef,
 		"EventEmittedOnSignatureVerification":       testEventEmittedOnSignatureVerification,
 		"EventEmittedOnNoSignatureVerification":     testEventEmittedOnNoSignatureVerification,
-		"OneContainerWIthCosignRepository":          testOneContainerWithCosignRepository,
+		"OneContainerWithCosignRepository":          testOneContainerWithCosignRepository,
+		"OneContainerLegacySigDigest":               testOneContainerLegacySigDigest,
+		"OneContainerBothSignatureFormats":          testOneContainerBothSignatureFormats,
 	}
 
 	fw, err := framework.New(t)
