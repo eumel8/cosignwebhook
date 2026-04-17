@@ -65,9 +65,20 @@ generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace co
 To use the webhook, you need to first sign your images with `cosign`, and then use **one** of the following validation
 possibilities.
 
-- [Public key as environment variable](#public-key-as-environment-variable)
-- [Public key as secret reference](#public-key-as-secret-reference)
-- [Public key as default secret for namespace](#public-key-as-default-secret-for-namespace)
+- [Cosign Webhook](#cosign-webhook)
+- [Installation with Helm](#installation-with-helm)
+- [Installation with manifest](#installation-with-manifest)
+  - [Cert generation](#cert-generation)
+  - [Validating your container images](#validating-your-container-images)
+    - [Public key as environment variable](#public-key-as-environment-variable)
+    - [Public key as secret reference](#public-key-as-secret-reference)
+    - [Public key as default secret for namespace](#public-key-as-default-secret-for-namespace)
+  - [](#)
+  - [Test](#test)
+    - [E2E tests](#e2e-tests)
+  - [Local build](#local-build)
+  - [Debug Logging for Verification](#debug-logging-for-verification)
+  - [Credits](#credits)
 
 Additionally, if the signature of the image you're trying to validate **is not** in the same repository as the image,
 you need to add the `COSIGN_REPOSITORY` environment variable to the environment of the container:
@@ -185,6 +196,15 @@ In case you're running the tests on Apple devices, you may need to use deactivat
 ```bash
 CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignwebhook
 ```
+
+## Debug Logging for Verification
+
+Extended debug logging for signature verification payloads was removed to reduce noise. To re-add it, refer to commit
+`704720b` which contains the removed `helper.go` with `transformOutput` and `logVerifiedPayloads` functions.
+
+The implementation is based on the cosign CLI's output transformation:
+
+- [cosign verify.go - transformOutput](https://github.com/sigstore/cosign/blob/b7462fb60764850a789392429d3ba40f969d07db/cmd/cosign/cli/verify/verify.go#L263)
 
 ## Credits
 
