@@ -1,6 +1,8 @@
 package test
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/eumel8/cosignwebhook/test/framework"
@@ -13,19 +15,39 @@ import (
 // terminationGracePeriodSeconds is the termination grace period for the test deployments
 var terminationGracePeriodSeconds int64 = 3
 
-const (
-	busyboxOne    = "k3d-registry.localhost:5000/busybox:first"
-	busyboxTwo    = "k3d-registry.localhost:5000/busybox:second"
-	signatureRepo = "k3d-registry.localhost:5000/sigs"
+var (
+	hostRegistry      string
+	clusterRegistry   string
+	busybox           string
+	signatureRepo     string
+	hostBusybox       string
+	hostSignatureRepo string
 )
+
+func init() {
+	hostPort := os.Getenv("REGISTRY_PORT")
+	if hostPort == "" {
+		hostPort = "5000"
+	}
+	clusterPort := "5000"
+	hostRegistry = fmt.Sprintf("k3d-registry.localhost:%s", hostPort)
+	clusterRegistry = fmt.Sprintf("k3d-registry.localhost:%s", clusterPort)
+
+	busybox = clusterRegistry + "/busybox:latest"
+	signatureRepo = clusterRegistry + "/sigs"
+
+	hostBusybox = hostRegistry + "/busybox:latest"
+	hostSignatureRepo = hostRegistry + "/sigs"
+}
 
 // oneContainerSinglePubKeyEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, succeeds.
 func oneContainerSinglePubKeyEnvRef(fw *framework.Framework, keyFunc framework.KeyFunc, key string) func(t *testing.T) {
 	priv, pub := keyFunc(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg.Host,
 	})
 
 	// create a deployment with a single signed container and a public key provided via an environment variable
@@ -47,7 +69,7 @@ func oneContainerSinglePubKeyEnvRef(fw *framework.Framework, keyFunc framework.K
 					Containers: []corev1.Container{
 						{
 							Name:  "one-container-env-ref",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -77,13 +99,15 @@ func oneContainerSinglePubKeyEnvRef(fw *framework.Framework, keyFunc framework.K
 // with a public key provided via an environment variable, succeeds.
 func testTwoContainersSinglePubKeyEnvRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg1 := fw.CreateTestImage(hostBusybox, key+"-first")
+	testImg2 := fw.CreateTestImage(hostBusybox, key+"-second")
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg1.Host,
 	})
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxTwo,
+		Image:   testImg2.Host,
 	})
 
 	// create a deployment with two signed containers and a public key provided via an environment variable
@@ -105,7 +129,7 @@ func testTwoContainersSinglePubKeyEnvRef(fw *framework.Framework, kf framework.K
 					Containers: []corev1.Container{
 						{
 							Name:  "two-containers-same-pub-key-env-ref-first",
-							Image: busyboxOne,
+							Image: testImg1.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -120,7 +144,7 @@ func testTwoContainersSinglePubKeyEnvRef(fw *framework.Framework, kf framework.K
 						},
 						{
 							Name:  "two-containers-same-pub-key-env-ref-second",
-							Image: busyboxTwo,
+							Image: testImg2.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -150,9 +174,10 @@ func testTwoContainersSinglePubKeyEnvRef(fw *framework.Framework, kf framework.K
 // with a public key provided via a secret, succeeds.
 func testOneContainerSinglePubKeySecretRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg.Host,
 	})
 
 	// create a secret with the public key
@@ -185,7 +210,7 @@ func testOneContainerSinglePubKeySecretRef(fw *framework.Framework, kf framework
 					Containers: []corev1.Container{
 						{
 							Name:  "one-container-secret-ref",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -224,13 +249,15 @@ func testOneContainerSinglePubKeySecretRef(fw *framework.Framework, kf framework
 func testTwoContainersMixedPubKeyMixedRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv1, pub1 := framework.CreateECDSAKeyPair(fw, "test1")
 	priv2, pub2 := framework.CreateECDSAKeyPair(fw, "test2")
+	testImg1 := fw.CreateTestImage(hostBusybox, key+"-first")
+	testImg2 := fw.CreateTestImage(hostBusybox, key+"-second")
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv1.Path,
-		Image:   busyboxOne,
+		Image:   testImg1.Host,
 	})
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv2.Path,
-		Image:   busyboxTwo,
+		Image:   testImg2.Host,
 	})
 
 	// create a secret with the public key
@@ -263,7 +290,7 @@ func testTwoContainersMixedPubKeyMixedRef(fw *framework.Framework, kf framework.
 					Containers: []corev1.Container{
 						{
 							Name:  "two-containers-mixed-pub-keyrefs-from-secret",
-							Image: busyboxOne,
+							Image: testImg1.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -285,7 +312,7 @@ func testTwoContainersMixedPubKeyMixedRef(fw *framework.Framework, kf framework.
 						},
 						{
 							Name:  "two-containers-mixed-pub-keyrefs-second-from-env",
-							Image: busyboxTwo,
+							Image: testImg2.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -316,13 +343,15 @@ func testTwoContainersMixedPubKeyMixedRef(fw *framework.Framework, kf framework.
 // with a public key provided via a secret and an environment variable, succeeds.
 func testTwoContainersSinglePubKeyMixedRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg1 := fw.CreateTestImage(hostBusybox, key+"-first")
+	testImg2 := fw.CreateTestImage(hostBusybox, key+"-second")
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg1.Host,
 	})
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxTwo,
+		Image:   testImg2.Host,
 	})
 
 	// create a secret with the public key
@@ -355,7 +384,7 @@ func testTwoContainersSinglePubKeyMixedRef(fw *framework.Framework, kf framework
 					Containers: []corev1.Container{
 						{
 							Name:  "two-containers-onekey-mixed-ref-first",
-							Image: busyboxOne,
+							Image: testImg1.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -377,7 +406,7 @@ func testTwoContainersSinglePubKeyMixedRef(fw *framework.Framework, kf framework
 						},
 						{
 							Name:  "two-containers-onekey-mixed-ref-second",
-							Image: busyboxTwo,
+							Image: testImg2.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -408,13 +437,15 @@ func testTwoContainersSinglePubKeyMixedRef(fw *framework.Framework, kf framework
 // with a public key provided via a secret and an environment variable, succeeds.
 func testTwoContainersWithInitSinglePubKeyMixedRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg1 := fw.CreateTestImage(hostBusybox, key+"-first")
+	testImg2 := fw.CreateTestImage(hostBusybox, key+"-second")
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg1.Host,
 	})
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxTwo,
+		Image:   testImg2.Host,
 	})
 
 	// create a secret with the public key
@@ -447,7 +478,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(fw *framework.Framework, kf f
 					InitContainers: []corev1.Container{
 						{
 							Name:  "two-containers-init-singlekey-mixed-ref-first",
-							Image: busyboxOne,
+							Image: testImg1.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -471,7 +502,7 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(fw *framework.Framework, kf f
 					Containers: []corev1.Container{
 						{
 							Name:  "two-containers-init-singlekey-mixed-ref-second",
-							Image: busyboxTwo,
+							Image: testImg2.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -502,9 +533,10 @@ func testTwoContainersWithInitSinglePubKeyMixedRef(fw *framework.Framework, kf f
 // that an event is emitted when a deployment passes signature verification
 func testEventEmittedOnSignatureVerification(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg.Host,
 	})
 
 	// create a deployment with a single signed container and a public key provided via an environment variable
@@ -526,7 +558,7 @@ func testEventEmittedOnSignatureVerification(fw *framework.Framework, kf framewo
 					Containers: []corev1.Container{
 						{
 							Name:  "event-emitted-on-verify",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -555,6 +587,9 @@ func testEventEmittedOnSignatureVerification(fw *framework.Framework, kf framewo
 }
 
 func testEventEmittedOnNoSignatureVerification(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
+	// Create unique image for this test (unsigned)
+	testImg := fw.CreateTestImage(hostBusybox, key)
+
 	// create a deployment with a single unsigned container
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -574,7 +609,7 @@ func testEventEmittedOnNoSignatureVerification(fw *framework.Framework, kf frame
 					Containers: []corev1.Container{
 						{
 							Name:    "event-emitted-on-no-verify-needed",
-							Image:   busyboxOne,
+							Image:   testImg.Cluster,
 							Command: []string{"sh", "-c", "echo 'hello world, i am tired and will sleep now, for a bit...'; sleep 60"},
 						},
 					},
@@ -598,10 +633,12 @@ func testEventEmittedOnNoSignatureVerification(fw *framework.Framework, kf frame
 // defined in the environment variables of the container.
 func testOneContainerWithCosignRepository(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath:       priv.Path,
-		Image:         busyboxOne,
-		SignatureRepo: signatureRepo,
+		Image:         testImg.Host,
+		SignatureRepo: hostSignatureRepo,
+		LegacyFormat:  true,
 	})
 
 	// create a secret with the public key
@@ -634,7 +671,7 @@ func testOneContainerWithCosignRepository(fw *framework.Framework, kf framework.
 					Containers: []corev1.Container{
 						{
 							Name:  "one-container-cosign-repo",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -672,14 +709,139 @@ func testOneContainerWithCosignRepository(fw *framework.Framework, kf framework.
 	}
 }
 
+// testOneContainerLegacySigDigest tests that a deployment with a single container signed
+// with cosign v2 (legacy format) where the signature is stored as a .sig digest tag
+// alongside the image in the same repository.
+func testOneContainerLegacySigDigest(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
+	priv, pub := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
+	fw.SignContainer(framework.SignOptions{
+		KeyPath:      priv.Path,
+		Image:        testImg.Host,
+		LegacyFormat: true,
+	})
+
+	// create a deployment with a single signed container and a public key provided via an environment variable
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "legacy-sig-digest",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "legacy-sig-digest"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "legacy-sig-digest"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "legacy-sig-digest",
+							Image: testImg.Cluster,
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: pub.Key,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return func(t *testing.T) {
+		fw.CreateDeployment(depl)
+		fw.WaitForDeployment(depl)
+		fw.Cleanup()
+	}
+}
+
+// testOneContainerBothSignatureFormats tests that a deployment with a single container
+// that has been signed with both cosign v3 (new bundle format) and cosign v2 (legacy .sig digest)
+// can be verified. The image is first signed with v3, then signed again with v2 using the same key.
+// The webhook should verify using the old format (.sig digest) when bundles verification fails.
+func testOneContainerBothSignatureFormats(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
+	priv, pub := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
+
+	// First sign with v3 new bundle format
+	fw.SignContainer(framework.SignOptions{
+		KeyPath:      priv.Path,
+		Image:        testImg.Host,
+		LegacyFormat: false, // v3 bundle format
+	})
+
+	// Then sign with v2 legacy format (.sig digest)
+	fw.SignContainer(framework.SignOptions{
+		KeyPath:      priv.Path,
+		Image:        testImg.Host,
+		LegacyFormat: true, // v2 legacy .sig format
+	})
+
+	// create a deployment with a single signed container and a public key provided via an environment variable
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "both-sig-formats",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "both-sig-formats"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "both-sig-formats"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					Containers: []corev1.Container{
+						{
+							Name:  "both-sig-formats",
+							Image: testImg.Cluster,
+							Command: []string{
+								"sh",
+								"-c",
+								"while true; do echo 'hello world, i am tired and will sleep now'; sleep 60; done",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  webhook.CosignEnvVar,
+									Value: pub.Key,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return func(t *testing.T) {
+		fw.CreateDeployment(depl)
+		fw.WaitForDeployment(depl)
+		fw.Cleanup()
+	}
+}
+
 // testOneContainerSinglePubKeyNoMatchEnvRef tests that a deployment with a single signed container,
 // with a public key provided via an environment variable, fails if the public key does not match the signature.
 func testOneContainerSinglePubKeyNoMatchEnvRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, _ := kf(fw, key)
 	_, otherPub := framework.CreateECDSAKeyPair(fw, "other")
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg.Host,
 	})
 
 	// create a deployment with a single signed container and a public key provided via an environment variable
@@ -701,7 +863,7 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(fw *framework.Framework, kf frame
 					Containers: []corev1.Container{
 						{
 							Name:  "no-match-env-ref",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -731,9 +893,11 @@ func testOneContainerSinglePubKeyNoMatchEnvRef(fw *framework.Framework, kf frame
 // with a public key provided via an environment variable, fails if one of the containers public key is malformed.
 func testTwoContainersSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg1 := fw.CreateTestImage(hostBusybox, key+"-first")
+	testImg2 := fw.CreateTestImage(hostBusybox, key+"-second")
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg1.Host,
 	})
 
 	// create a deployment with two signed containers and a public key provided via an environment variable
@@ -755,7 +919,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fr
 					Containers: []corev1.Container{
 						{
 							Name:  "malformed-env-ref-first",
-							Image: busyboxOne,
+							Image: testImg1.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -770,7 +934,7 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fr
 						},
 						{
 							Name:  "malformed-env-ref-second",
-							Image: busyboxTwo,
+							Image: testImg2.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -800,9 +964,10 @@ func testTwoContainersSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fr
 // with a public key provided via an environment variable, fails if the public key has an incorrect format.
 func testOneContainerSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, _ := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath: priv.Path,
-		Image:   busyboxOne,
+		Image:   testImg.Host,
 	})
 
 	depl := appsv1.Deployment{
@@ -823,7 +988,7 @@ func testOneContainerSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fra
 					Containers: []corev1.Container{
 						{
 							Name:  "single-malformed-env-ref",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh",
 								"-c",
@@ -849,15 +1014,17 @@ func testOneContainerSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fra
 	}
 }
 
-// testOneContainerSinglePubKeyNoMatchSecretRef tests that a deployment with a single signed container,
-// with a public key provided via a secret, fails if the public key does not match the signature, which
-// is uploaded in a different repository as the image itself
-func testOneContainerWithCosingRepoVariableMissing(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
+// testOneContainerWithCosignRepoVariableMissing tests that a deployment with a single container,
+// whose legacy signature is stored in a separate repository, fails verification when the pod
+// does not have the COSIGN_REPOSITORY environment variable set.
+func testOneContainerWithCosignRepoVariableMissing(fw *framework.Framework, kf framework.KeyFunc, key string) func(*testing.T) {
 	priv, pub := kf(fw, key)
+	testImg := fw.CreateTestImage(hostBusybox, key)
 	fw.SignContainer(framework.SignOptions{
 		KeyPath:       priv.Path,
-		Image:         busyboxOne,
-		SignatureRepo: signatureRepo,
+		Image:         testImg.Host,
+		SignatureRepo: hostSignatureRepo,
+		LegacyFormat:  true,
 	})
 
 	depl := appsv1.Deployment{
@@ -878,10 +1045,10 @@ func testOneContainerWithCosingRepoVariableMissing(fw *framework.Framework, kf f
 					Containers: []corev1.Container{
 						{
 							Name:  "one-container-with-cosign-repo-missing",
-							Image: busyboxOne,
+							Image: testImg.Cluster,
 							Command: []string{
 								"sh", "-c",
-								"echo 'hello world, i can't start because I'm missing an env var...'; sleep 60",
+								"echo 'hello world'; sleep 60",
 							},
 							Env: []corev1.EnvVar{
 								{

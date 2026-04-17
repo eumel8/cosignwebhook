@@ -1,0 +1,7 @@
+# Fast development Dockerfile - expects pre-built binary
+# Usage: go build -o cosignwebhook . && docker build -f Dockerfile.dev -t <image> .
+FROM alpine:latest
+COPY cosignwebhook /cosignwebhook
+RUN adduser -D -u 10001 webhook
+USER webhook
+ENTRYPOINT ["/cosignwebhook"]

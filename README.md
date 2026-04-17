@@ -14,14 +14,21 @@ Kubernetes Validation Admission Controller to verify Cosign Image signatures.
 
 <img src="cosignwebhook.png" alt="cosignwebhook" width="680"/>
 
-This webhook watches for pod creation in deployments and verifies all container image it finds with an existing
-RSA public key (if present).
+This webhook watches for pod creation in deployments and verifies all container images using a
+public key (ECDSA or RSA), if present.
+
+It supports two signature formats:
+
+- **Sigstore bundle format** (cosign v3 with `--new-bundle-format`) — signatures stored as OCI referrers
+- **Legacy tag-based format** (cosign v2 / v3 default) — signatures stored as `sha256-<digest>.sig` tags
+
+The webhook tries bundle verification first, then falls back to legacy automatically.
+No re-signing is needed when upgrading from cosign v2 to v3.
 
 # Installation with Helm
 
 ```bash
-helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --versi
-on 5.0.0 --create-namespace
+helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --version 5.1.0 --create-namespace
 ```
 
 this installation has some advantages:
@@ -58,9 +65,20 @@ generate-certs.sh --service cosignwebhook --webhook cosignwebhook --namespace co
 To use the webhook, you need to first sign your images with `cosign`, and then use **one** of the following validation
 possibilities.
 
-- [Public key as environment variable](#public-key-as-environment-variable)
-- [Public key as secret reference](#public-key-as-secret-reference)
-- [Public key as default secret for namespace](#public-key-as-default-secret-for-namespace)
+- [Cosign Webhook](#cosign-webhook)
+- [Installation with Helm](#installation-with-helm)
+- [Installation with manifest](#installation-with-manifest)
+  - [Cert generation](#cert-generation)
+  - [Validating your container images](#validating-your-container-images)
+    - [Public key as environment variable](#public-key-as-environment-variable)
+    - [Public key as secret reference](#public-key-as-secret-reference)
+    - [Public key as default secret for namespace](#public-key-as-default-secret-for-namespace)
+  - [](#)
+  - [Test](#test)
+    - [E2E tests](#e2e-tests)
+  - [Local build](#local-build)
+  - [Debug Logging for Verification](#debug-logging-for-verification)
+  - [Credits](#credits)
 
 Additionally, if the signature of the image you're trying to validate **is not** in the same repository as the image,
 you need to add the `COSIGN_REPOSITORY` environment variable to the environment of the container:
@@ -75,6 +93,10 @@ env:
 This option is similar to the `COSIGN_REPOSITORY` environment variable used with `cosign verify` and `cosign sign`
 command line tool and is used to specify the repository where the signature of the image is located, if it's not in the
 same repository as the image.
+
+> **Note:** `COSIGN_REPOSITORY` only applies to legacy tag-based signatures. The new sigstore bundle format
+> (OCI referrers) always stores signatures on the image's own repository, so `COSIGN_REPOSITORY` has no effect
+> for bundle-format signatures.
 
 ### Public key as environment variable
 
@@ -175,10 +197,20 @@ In case you're running the tests on Apple devices, you may need to use deactivat
 CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o cosignwebhook
 ```
 
+## Debug Logging for Verification
+
+Extended debug logging for signature verification payloads was removed to reduce noise. To re-add it, refer to commit
+`704720b` which contains the removed `helper.go` with `transformOutput` and `logVerifiedPayloads` functions.
+
+The implementation is based on the cosign CLI's output transformation:
+
+- [cosign verify.go - transformOutput](https://github.com/sigstore/cosign/blob/b7462fb60764850a789392429d3ba40f969d07db/cmd/cosign/cli/verify/verify.go#L263)
+
 ## Credits
 
 * Bruno Bressi <bruno.bressi@telekom.de>
 * Frank Kloeker <f.kloeker@telekom.de>
+* Maximilian Schubert <maximilian.schubert@telekom.de>
 
 Life is for sharing. If you have an issue with the code or want to improve it, feel free to open an issue or an pull
 request.

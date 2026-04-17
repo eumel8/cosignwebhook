@@ -18,7 +18,9 @@ func TestPassECDSA(t *testing.T) {
 		"TwoContainersSingleWithInitPubKeyMixedRef": testTwoContainersWithInitSinglePubKeyMixedRef,
 		"EventEmittedOnSignatureVerification":       testEventEmittedOnSignatureVerification,
 		"EventEmittedOnNoSignatureVerification":     testEventEmittedOnNoSignatureVerification,
-		"OneContainerWIthCosignRepository":          testOneContainerWithCosignRepository,
+		"OneContainerWithCosignRepository":          testOneContainerWithCosignRepository,
+		"OneContainerLegacySigDigest":               testOneContainerLegacySigDigest,
+		"OneContainerBothSignatureFormats":          testOneContainerBothSignatureFormats,
 	}
 
 	fw, err := framework.New(t)
@@ -38,7 +40,7 @@ func TestFailingDeployments(t *testing.T) {
 		"OneContainerSinglePubKeyMalformedEnvRef":   testOneContainerSinglePubKeyMalformedEnvRef,
 		"TwoContainersSinglePubKeyMalformedEnvRef":  testTwoContainersSinglePubKeyMalformedEnvRef,
 		"OneContainerSinglePubKeyNoMatchEnvRef":     testOneContainerSinglePubKeyNoMatchEnvRef,
-		"OneContainerWithCosingRepoVariableMissing": testOneContainerWithCosingRepoVariableMissing,
+		"OneContainerWithCosignRepoVariableMissing": testOneContainerWithCosignRepoVariableMissing,
 	}
 
 	fw, err := framework.New(t)
