@@ -58,7 +58,8 @@ jobs:
             ${{ steps.meta.outputs.tags }}
       - name: Sign Push
         run: |
-          cosign sign --key env://COSIGN_KEY --tlog-upload=false ghcr.io/eumel8/cosignwebhook/cosignwebhook@${{ steps.build-push.outputs.digest }}
-          cosign sign --key env://COSIGN_KEY --tlog-upload=false mtr.devops.telekom.de/caas/cosignwebhook@${{ steps.build-push.outputs.digest }}
+          cosign signing-config create > signing-config.json
+          cosign sign --key env://COSIGN_KEY --signing-config signing-config.json ghcr.io/eumel8/cosignwebhook/cosignwebhook@${{ steps.build-push.outputs.digest }}
+          cosign sign --key env://COSIGN_KEY --signing-config signing-config.json mtr.devops.telekom.de/caas/cosignwebhook@${{ steps.build-push.outputs.digest }}
         env:
           COSIGN_KEY: ${{secrets.COSIGN_KEY}}

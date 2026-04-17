@@ -17,11 +17,11 @@ jobs:
         run: |
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           helm version
-          helm registry login ${GHR} -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          helm registry login ${GHR} -u ${{ github.repository_owner }} -p ${{ secrets.GITHUB_TOKEN }}
           helm registry login ${MTR} -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
           helm lint chart
           helm package chart
-          helm push $(ls *.tgz| head -1) oci://${GHR}/${{ github.actor }}/charts
+          helm push $(ls *.tgz| head -1) oci://${GHR}/${{ github.repository_owner }}/charts
           helm push $(ls *.tgz| head -1) oci://${MTR}/${REPO}/charts
         env:
           DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
