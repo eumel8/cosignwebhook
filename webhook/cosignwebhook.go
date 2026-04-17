@@ -335,11 +335,14 @@ func (csh *CosignServerHandler) verifyContainer(ctx context.Context, c corev1.Co
 
 	log.Debugf("Verifying image %q", image)
 
-	if err := csh.verifyBundleSignature(ctx, refImage, verifier, remoteOpts); err == nil {
-		return nil
+	err = csh.verifyBundleSignature(ctx, refImage, verifier, remoteOpts)
+	if err != nil {
+		log.Warnf("Failed to verify v3 bundle, trying legacy verification: %v", err)
+		return csh.verifyLegacySignature(ctx, refImage, verifier, remoteOpts)
 	}
 
-	return csh.verifyLegacySignature(ctx, refImage, verifier, remoteOpts)
+	return nil
+
 }
 
 // parseImageAndVerifier parses the image reference and creates a signature verifier from the public key.
@@ -392,7 +395,8 @@ func (*CosignServerHandler) verifyBundleSignature(ctx context.Context, refImage 
 	}
 
 	if len(bundles) == 0 {
-		return fmt.Errorf("no bundles found for image %q", refImage.String())
+		log.Debugf("No bundles found for image %q", refImage.String())
+		return err
 	}
 
 	log.Debugf("Found %d bundles for image %q, verifying with bundled signature", len(bundles), refImage.String())
@@ -405,8 +409,8 @@ func (*CosignServerHandler) verifyBundleSignature(ctx context.Context, refImage 
 		NewBundleFormat:    true,
 	})
 	if err != nil {
-		log.Errorf("Error verifying bundled signature: %v", err)
-		return fmt.Errorf("bundled signature for %q couldn't be verified", refImage.String())
+		log.Errorf("Error verifying bundled signature for image %q: %v", refImage.String(), err)
+		return err
 	}
 
 	verifiedProcessed.Inc()
