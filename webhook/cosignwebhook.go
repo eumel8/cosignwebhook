@@ -228,7 +228,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		err = csh.verifyContainer(pod.Spec.InitContainers[i], pubKey, kc)
+		err = csh.verifyContainer(ctx, pod.Spec.InitContainers[i], pubKey, kc)
 		if err != nil {
 			log.Errorf("Error verifying init container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.InitContainers[0].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
@@ -242,7 +242,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 		if pubKey == "" {
 			continue
 		}
-		err = csh.verifyContainer(pod.Spec.Containers[i], pubKey, kc)
+		err = csh.verifyContainer(ctx, pod.Spec.Containers[i], pubKey, kc)
 		if err != nil {
 			log.Errorf("Error verifying container %s/%s/%s: %v", pod.Namespace, pod.Name, pod.Spec.Containers[i].Name, err)
 			deny(w, err.Error(), arRequest.Request.UID)
@@ -319,7 +319,7 @@ func (csh *CosignServerHandler) getPubKeyFor(c corev1.Container, ns string) stri
 // verifyContainer verifies the signature of the container image.
 // It first attempts verification using the new sigstore bundle format
 // (OCI referrers), then falls back to legacy cosign signature tags.
-func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey string, kc authn.Keychain) error { //nolint:gocritic // better for garbage collection
+func (csh *CosignServerHandler) verifyContainer(ctx context.Context, c corev1.Container, pubKey string, kc authn.Keychain) error { //nolint:gocritic // better for garbage collection
 	log.Debugf("Verifying container %s", c.Name)
 
 	image := c.Image
@@ -335,11 +335,11 @@ func (csh *CosignServerHandler) verifyContainer(c corev1.Container, pubKey strin
 
 	log.Debugf("Verifying image %q", image)
 
-	if err := csh.verifyBundleSignature(refImage, verifier, remoteOpts, image); err == nil {
+	if err := csh.verifyBundleSignature(ctx, refImage, verifier, remoteOpts); err == nil {
 		return nil
 	}
 
-	return csh.verifyLegacySignature(refImage, verifier, remoteOpts, image)
+	return csh.verifyLegacySignature(ctx, refImage, verifier, remoteOpts)
 }
 
 // parseImageAndVerifier parses the image reference and creates a signature verifier from the public key.
@@ -384,20 +384,20 @@ func (*CosignServerHandler) buildRemoteOpts(kc authn.Keychain, env []corev1.EnvV
 }
 
 // verifyBundleSignature attempts to verify using the new sigstore bundle format.
-func (*CosignServerHandler) verifyBundleSignature(refImage name.Reference, verifier signature.Verifier, remoteOpts []ociremote.Option, image string) error {
-	bundles, _, err := cosign.GetBundles(context.Background(), refImage, remoteOpts)
+func (*CosignServerHandler) verifyBundleSignature(ctx context.Context, refImage name.Reference, verifier signature.Verifier, remoteOpts []ociremote.Option) error {
+	bundles, _, err := cosign.GetBundles(ctx, refImage, remoteOpts)
 	if err != nil {
-		log.Debugf("Error getting bundles for image %q: %v", image, err)
+		log.Debugf("Error getting bundles for image %q: %v", refImage.String(), err)
 		return err
 	}
 
 	if len(bundles) == 0 {
-		return fmt.Errorf("no bundles found for image %q", image)
+		return fmt.Errorf("no bundles found for image %q", refImage.String())
 	}
 
-	log.Debugf("Found %d bundles for image %q, verifying with bundled signature", len(bundles), image)
+	log.Debugf("Found %d bundles for image %q, verifying with bundled signature", len(bundles), refImage.String())
 
-	verified, _, err := cosign.VerifyImageAttestations(context.Background(), refImage, &cosign.CheckOpts{
+	_, _, err = cosign.VerifyImageAttestations(ctx, refImage, &cosign.CheckOpts{
 		RegistryClientOpts: remoteOpts,
 		SigVerifier:        verifier,
 		IgnoreSCT:          true,
@@ -406,24 +406,20 @@ func (*CosignServerHandler) verifyBundleSignature(refImage name.Reference, verif
 	})
 	if err != nil {
 		log.Errorf("Error verifying bundled signature: %v", err)
-		return fmt.Errorf("bundled signature for %q couldn't be verified", image)
-	}
-
-	if log.DebugMode {
-		logVerifiedPayloads(verified, refImage.Name(), image)
+		return fmt.Errorf("bundled signature for %q couldn't be verified", refImage.String())
 	}
 
 	verifiedProcessed.Inc()
-	log.Infof("Image %q verified successfully (bundle format)", image)
+	log.Infof("Image %q verified successfully (bundle format)", refImage.String())
 	return nil
 }
 
 // verifyLegacySignature attempts to verify using the legacy cosign signature tags.
-func (*CosignServerHandler) verifyLegacySignature(refImage name.Reference, verifier signature.Verifier, remoteOpts []ociremote.Option, image string) error {
-	log.Debugf("Verifying image %q with legacy signature format", image)
+func (*CosignServerHandler) verifyLegacySignature(ctx context.Context, refImage name.Reference, verifier signature.Verifier, remoteOpts []ociremote.Option) error {
+	log.Debugf("Verifying image %q with legacy signature format", refImage.String())
 
-	verified, _, err := cosign.VerifyImageSignatures(
-		context.Background(),
+	_, _, err := cosign.VerifyImageSignatures(
+		ctx,
 		refImage,
 		&cosign.CheckOpts{
 			RegistryClientOpts: remoteOpts,
@@ -434,15 +430,11 @@ func (*CosignServerHandler) verifyLegacySignature(refImage name.Reference, verif
 	)
 	if err != nil {
 		log.Errorf("Error verifying legacy signature: %v", err)
-		return fmt.Errorf("signature for %q couldn't be verified", image)
-	}
-
-	if log.DebugMode {
-		logVerifiedPayloads(verified, refImage.Name(), image)
+		return fmt.Errorf("signature for %q couldn't be verified", refImage.String())
 	}
 
 	verifiedProcessed.Inc()
-	log.Infof("Image %q verified successfully (legacy format)", image)
+	log.Infof("Image %q verified successfully (legacy format)", refImage.String())
 	return nil
 }
 
