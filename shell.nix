@@ -1,14 +1,8 @@
 { pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz") { } }:
 
-let
-  cosign-v3 = pkgs.runCommand "cosign-v3" { } ''
-    mkdir -p $out/bin
-    ln -s ${pkgs.cosign}/bin/cosign $out/bin/cosign-v3
-  '';
-in
 pkgs.mkShell {
   packages = [
-    cosign-v3
+    pkgs.cosign
     pkgs.go
     pkgs.k3d
     pkgs.kubectl
@@ -25,10 +19,10 @@ pkgs.mkShell {
     export HOST_PORT="5100"
 
     echo "cosignwebhook dev shell"
-    echo "  cosign-v3: $(cosign-v3 version 2>&1 | head -1)"
-    echo "  go:        $(go version)"
-    echo "  k3d:       $(k3d version | head -1)"
-    echo "  kubectl:   $(kubectl version --client -o yaml 2>/dev/null | grep gitVersion | head -1)"
-    echo "  helm:      $(helm version --short)"
+    echo "  cosign:  $(cosign version 2>&1 | head -1)"
+    echo "  go:      $(go version)"
+    echo "  k3d:     $(k3d version | head -1)"
+    echo "  kubectl: $(kubectl version --client -o yaml 2>/dev/null | grep gitVersion | head -1)"
+    echo "  helm:    $(helm version --short)"
   '';
 }

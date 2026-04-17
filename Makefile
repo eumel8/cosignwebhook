@@ -8,7 +8,7 @@ BUSYBOX_SRC      := busybox:latest
 BUSYBOX_DIGEST   := $(shell docker inspect --format='{{index .RepoDigests 0}}' $(BUSYBOX_SRC))
 HOST_REGISTRY    := k3d-registry.localhost:$(HOST_PORT)
 CLUSTER_REGISTRY := k3d-registry.localhost:$(PORT)
-COSIGN           ?= cosign-v3
+COSIGN           ?= cosign
 SIGNING_CONFIG   := test/framework/signing-config.json
 BINARY           := cosignwebhook
 
