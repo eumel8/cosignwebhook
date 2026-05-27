@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -254,6 +255,13 @@ func (f *Framework) waitForReplicaSetCreation(d appsv1.Deployment) string {
 
 // AssertDeploymentFailed asserts that the deployment cannot start
 func (f *Framework) AssertDeploymentFailed(d appsv1.Deployment) {
+	f.AssertDeploymentFailedWithMessage(d, "")
+}
+
+// AssertDeploymentFailedWithMessage asserts that the deployment cannot start and that the
+// FailedCreate event on its ReplicaSet contains the given substring. Pass an empty string
+// to skip the substring check.
+func (f *Framework) AssertDeploymentFailedWithMessage(d appsv1.Deployment, contains string) {
 	if f.err != nil {
 		return
 	}
@@ -282,17 +290,21 @@ func (f *Framework) AssertDeploymentFailed(d appsv1.Deployment) {
 		select {
 		case <-ctx.Done():
 			f.err = fmt.Errorf("timeout reached while waiting for deployment to fail")
+			return
 		case event := <-w.ResultChan():
 			e, ok := event.Object.(*corev1.Event)
 			if !ok {
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
-			if e.Reason == "FailedCreate" {
-				f.t.Logf("deployment %s failed: %s", d.Name, e.Message)
-				return
+			if e.Reason != "FailedCreate" {
+				continue
 			}
-			time.Sleep(500 * time.Millisecond)
+			f.t.Logf("deployment %s failed: %s", d.Name, e.Message)
+			if contains != "" && !strings.Contains(e.Message, contains) {
+				f.err = fmt.Errorf("FailedCreate event message %q does not contain %q", e.Message, contains)
+			}
+			return
 		}
 	}
 }

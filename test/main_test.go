@@ -41,6 +41,7 @@ func TestFailingDeployments(t *testing.T) {
 		"TwoContainersSinglePubKeyMalformedEnvRef":  testTwoContainersSinglePubKeyMalformedEnvRef,
 		"OneContainerSinglePubKeyNoMatchEnvRef":     testOneContainerSinglePubKeyNoMatchEnvRef,
 		"OneContainerWithCosignRepoVariableMissing": testOneContainerWithCosignRepoVariableMissing,
+		"OneContainerMalformedDockerconfigjson":     testOneContainerMalformedDockerconfigjson,
 	}
 
 	fw, err := framework.New(t)

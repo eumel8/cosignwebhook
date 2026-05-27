@@ -1014,6 +1014,66 @@ func testOneContainerSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fra
 	}
 }
 
+// testOneContainerMalformedDockerconfigjson tests that when a pod references an imagePullSecret
+// whose .dockerconfigjson payload is malformed, the webhook surfaces the underlying k8schain
+// initialization error in the FailedCreate event on the ReplicaSet, instead of the generic
+// "Failed initializing k8schain" message.
+func testOneContainerMalformedDockerconfigjson(fw *framework.Framework, _ framework.KeyFunc, key string) func(*testing.T) {
+	testImg := fw.CreateTestImage(hostBusybox, key)
+
+	secretName := "malformed-dockerconfigjson"
+	fw.CreateSecret(corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: "test-cases",
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+		Data: map[string][]byte{
+			// Invalid JSON — k8schain's dockerconfigjson parser must error on this.
+			corev1.DockerConfigJsonKey: []byte(`{"auths": {"registry.example.com": {"auth": "not base64`),
+		},
+	})
+
+	depl := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "malformed-dockerconfigjson",
+			Namespace: "test-cases",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "malformed-dockerconfigjson"},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "malformed-dockerconfigjson"},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+					ImagePullSecrets: []corev1.LocalObjectReference{
+						{Name: secretName},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "malformed-dockerconfigjson",
+							Image: testImg.Cluster,
+							Command: []string{
+								"sh", "-c",
+								"echo 'hello world'; sleep 60",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return func(t *testing.T) {
+		fw.CreateDeployment(depl)
+		fw.AssertDeploymentFailedWithMessage(depl, "Failed initializing k8schain")
+		fw.Cleanup()
+	}
+}
+
 // testOneContainerWithCosignRepoVariableMissing tests that a deployment with a single container,
 // whose legacy signature is stored in a separate repository, fails verification when the pod
 // does not have the COSIGN_REPOSITORY environment variable set.
