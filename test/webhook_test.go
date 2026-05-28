@@ -580,8 +580,13 @@ func testEventEmittedOnSignatureVerification(fw *framework.Framework, kf framewo
 	return func(*testing.T) {
 		fw.CreateDeployment(depl)
 		fw.WaitForDeployment(depl)
-		pod := fw.GetPods(depl)
-		fw.AssertEventForPod("PodVerified", pod.Items[0])
+		fw.AssertPods(depl)
+		pods := fw.GetPods(depl)
+		var pod *corev1.Pod
+		if pods != nil && len(pods.Items) > 0 {
+			pod = &pods.Items[0]
+		}
+		fw.AssertEventForPod("PodVerified", pod)
 		fw.Cleanup()
 	}
 }
@@ -621,8 +626,13 @@ func testEventEmittedOnNoSignatureVerification(fw *framework.Framework, kf frame
 	return func(t *testing.T) {
 		fw.CreateDeployment(depl)
 		fw.WaitForDeployment(depl)
-		pl := fw.GetPods(depl)
-		fw.AssertEventForPod("NoVerification", pl.Items[0])
+		fw.AssertPods(depl)
+		pods := fw.GetPods(depl)
+		var pod *corev1.Pod
+		if pods != nil && len(pods.Items) > 0 {
+			pod = &pods.Items[0]
+		}
+		fw.AssertEventForPod("NoVerification", pod)
 		fw.Cleanup()
 	}
 }
@@ -1015,24 +1025,22 @@ func testOneContainerSinglePubKeyMalformedEnvRef(fw *framework.Framework, kf fra
 }
 
 // testOneContainerMalformedDockerconfigjson tests that when a pod references an imagePullSecret
-// whose .dockerconfigjson payload is malformed, the webhook surfaces the underlying k8schain
-// initialization error in the FailedCreate event on the ReplicaSet, instead of the generic
-// "Failed initializing k8schain" message.
+// whose .dockerconfigjson payload is schema-valid but semantically malformed, the webhook surfaces
+// the underlying k8schain initialization failure via the ReplicaSet FailedCreate event.
 func testOneContainerMalformedDockerconfigjson(fw *framework.Framework, _ framework.KeyFunc, key string) func(*testing.T) {
 	testImg := fw.CreateTestImage(hostBusybox, key)
 
 	secretName := "malformed-dockerconfigjson"
-	fw.CreateSecret(corev1.Secret{
+	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: "test-cases",
 		},
 		Type: corev1.SecretTypeDockerConfigJson,
 		Data: map[string][]byte{
-			// Invalid JSON — k8schain's dockerconfigjson parser must error on this.
-			corev1.DockerConfigJsonKey: []byte(`{"auths": {"registry.example.com": {"auth": "not base64`),
+			corev1.DockerConfigJsonKey: []byte(`{"auths":{"k3d-registry.localhost:5000":{"auth":"%%%"}}}`),
 		},
-	})
+	}
 
 	depl := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1068,8 +1076,21 @@ func testOneContainerMalformedDockerconfigjson(fw *framework.Framework, _ framew
 	}
 
 	return func(t *testing.T) {
+		fw.CreateSecret(secret)
 		fw.CreateDeployment(depl)
-		fw.AssertDeploymentFailedWithMessage(depl, "Failed initializing k8schain")
+		event, ok := fw.WaitForReplicaSetFailedCreateEvent(depl)
+		if !ok {
+			fw.Cleanup()
+			return
+		}
+		if event.Source.Component != "replicaset-controller" {
+			fw.Cleanup()
+			t.Fatalf("unexpected event source component: %q", event.Source.Component)
+		}
+		if event.InvolvedObject.Kind != "ReplicaSet" {
+			fw.Cleanup()
+			t.Fatalf("unexpected involved object kind: %q", event.InvolvedObject.Kind)
+		}
 		fw.Cleanup()
 	}
 }

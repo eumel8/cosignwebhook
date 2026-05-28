@@ -23,14 +23,23 @@ func TestPassECDSA(t *testing.T) {
 		"OneContainerBothSignatureFormats":          testOneContainerBothSignatureFormats,
 	}
 
-	fw, err := framework.New(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	for name, tf := range testFuncs {
-		t.Run(fmt.Sprintf("[%s] %s", "ECDSA", name), tf(fw, framework.CreateECDSAKeyPair, name))
-		t.Run(fmt.Sprintf("[%s] %s", "RSA", name), tf(fw, framework.CreateRSAKeyPair, name))
+		name := name
+		tf := tf
+		t.Run(fmt.Sprintf("[%s] %s", "ECDSA", name), func(t *testing.T) {
+			fw, err := framework.New(t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tf(fw, framework.CreateECDSAKeyPair, name)(t)
+		})
+		t.Run(fmt.Sprintf("[%s] %s", "RSA", name), func(t *testing.T) {
+			fw, err := framework.New(t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tf(fw, framework.CreateRSAKeyPair, name)(t)
+		})
 	}
 }
 
@@ -44,13 +53,22 @@ func TestFailingDeployments(t *testing.T) {
 		"OneContainerMalformedDockerconfigjson":     testOneContainerMalformedDockerconfigjson,
 	}
 
-	fw, err := framework.New(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	for name, tf := range testFuncs {
-		t.Run(name, tf(fw, framework.CreateECDSAKeyPair, name))
-		t.Run(name, tf(fw, framework.CreateRSAKeyPair, name))
+		name := name
+		tf := tf
+		t.Run(fmt.Sprintf("[%s] %s", "ECDSA", name), func(t *testing.T) {
+			fw, err := framework.New(t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tf(fw, framework.CreateECDSAKeyPair, name)(t)
+		})
+		t.Run(fmt.Sprintf("[%s] %s", "RSA", name), func(t *testing.T) {
+			fw, err := framework.New(t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tf(fw, framework.CreateRSAKeyPair, name)(t)
+		})
 	}
 }
