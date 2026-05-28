@@ -138,7 +138,8 @@ func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string)
 
 			if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil {
 				log.Debugf("Found reference to public key in secret %q for container %q", envVar.ValueFrom.SecretKeyRef.Name, c.Name)
-				return csh.getSecretValue(ns,
+				return csh.getSecretValue(
+					ns,
 					envVar.ValueFrom.SecretKeyRef.Name,
 					envVar.ValueFrom.SecretKeyRef.Key,
 				)
@@ -342,7 +343,6 @@ func (csh *CosignServerHandler) verifyContainer(ctx context.Context, c corev1.Co
 	}
 
 	return nil
-
 }
 
 // parseImageAndVerifier parses the image reference and creates a signature verifier from the public key.
