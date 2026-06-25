@@ -100,7 +100,11 @@ tolerations: []
 
 affinity: {}
 
-# proxy configuration for outbound connections
+# proxy configuration for outbound connections (image and signature pulls).
+# When enabled, these env vars are injected into the webhook container and the
+# image-verification init containers. The verification path honors them via
+# http.ProxyFromEnvironment. Set noProxy to reach internal registries directly,
+# e.g. noProxy: ".telekom.de" routes only non-*.telekom.de images via the proxy.
 proxy:
   enabled: false
   httpProxy: ""
