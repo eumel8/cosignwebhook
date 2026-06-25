@@ -138,7 +138,8 @@ func (csh *CosignServerHandler) getPubKeyFromEnv(c *corev1.Container, ns string)
 
 			if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil {
 				log.Debugf("Found reference to public key in secret %q for container %q", envVar.ValueFrom.SecretKeyRef.Name, c.Name)
-				return csh.getSecretValue(ns,
+				return csh.getSecretValue(
+					ns,
 					envVar.ValueFrom.SecretKeyRef.Name,
 					envVar.ValueFrom.SecretKeyRef.Key,
 				)
@@ -217,7 +218,7 @@ func (csh *CosignServerHandler) Serve(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	kc, err := newKeychainForPod(ctx, pod, csh.cs)
 	if err != nil {
-		http.Error(w, "Failed initializing k8schain", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed initializing k8schain: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -342,7 +343,6 @@ func (csh *CosignServerHandler) verifyContainer(ctx context.Context, c corev1.Co
 	}
 
 	return nil
-
 }
 
 // parseImageAndVerifier parses the image reference and creates a signature verifier from the public key.

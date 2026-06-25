@@ -137,7 +137,7 @@ func (f *Framework) cleanupSecrets() {
 }
 
 // GetPods returns the pod(s) of the deployment. The fetch is done by label selector (app=<deployment name>)
-// If the get request fails, the test will fail and the framework will be cleaned up
+// If the get request fails, the test will fail and the framework will be cleaned up.
 func (f *Framework) GetPods(d appsv1.Deployment) *corev1.PodList {
 	if f.err != nil {
 		return nil
@@ -148,8 +148,38 @@ func (f *Framework) GetPods(d appsv1.Deployment) *corev1.PodList {
 	})
 	if err != nil {
 		f.err = err
+		return nil
 	}
 	return pods
+}
+
+// AssertPods waits until the deployment has at least one pod.
+func (f *Framework) AssertPods(d appsv1.Deployment) {
+	if f.err != nil {
+		return
+	}
+
+	f.t.Logf("waiting for pods of deployment %s", d.Name)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			f.err = fmt.Errorf("timeout reached while waiting for pod of deployment %s", d.Name)
+			return
+		default:
+			pods := f.GetPods(d)
+			if f.err != nil {
+				return
+			}
+			if pods != nil && len(pods.Items) > 0 {
+				f.t.Logf("deployment %s has pods", d.Name)
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
 }
 
 // CreateDeployment creates a deployment in the testing namespace
@@ -252,28 +282,35 @@ func (f *Framework) waitForReplicaSetCreation(d appsv1.Deployment) string {
 	}
 }
 
-// AssertDeploymentFailed asserts that the deployment cannot start
+// AssertDeploymentFailed asserts that the deployment cannot start.
 func (f *Framework) AssertDeploymentFailed(d appsv1.Deployment) {
+	_, ok := f.WaitForReplicaSetFailedCreateEvent(d)
+	if !ok && f.err == nil {
+		f.err = fmt.Errorf("deployment %s did not emit a FailedCreate event", d.Name)
+	}
+}
+
+// WaitForReplicaSetFailedCreateEvent waits for the FailedCreate event emitted by the deployment's ReplicaSet.
+func (f *Framework) WaitForReplicaSetFailedCreateEvent(d appsv1.Deployment) (*corev1.Event, bool) {
 	if f.err != nil {
-		return
+		return nil, false
 	}
 
 	f.t.Logf("waiting for deployment %s to fail", d.Name)
 
-	// watch for replicasets of the deployment
 	rsName := f.waitForReplicaSetCreation(d)
 	if rsName == "" {
-		return
+		return nil, false
 	}
 
-	// get warning events of deployment's namespace and check if the deployment failed
 	w, err := f.k8s.CoreV1().Events(d.Namespace).Watch(context.Background(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", rsName),
 	})
 	if err != nil {
 		f.err = err
-		return
+		return nil, false
 	}
+	defer w.Stop()
 
 	ctx, done := context.WithTimeout(context.Background(), 30*time.Second)
 	defer done()
@@ -282,24 +319,32 @@ func (f *Framework) AssertDeploymentFailed(d appsv1.Deployment) {
 		select {
 		case <-ctx.Done():
 			f.err = fmt.Errorf("timeout reached while waiting for deployment to fail")
-		case event := <-w.ResultChan():
+			return nil, false
+		case event, ok := <-w.ResultChan():
+			if !ok {
+				f.err = fmt.Errorf("event watch closed while waiting for deployment %s to fail", d.Name)
+				return nil, false
+			}
 			e, ok := event.Object.(*corev1.Event)
 			if !ok {
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
-			if e.Reason == "FailedCreate" {
-				f.t.Logf("deployment %s failed: %s", d.Name, e.Message)
-				return
+			if e.Reason != "FailedCreate" {
+				continue
 			}
-			time.Sleep(500 * time.Millisecond)
+			f.t.Logf("deployment %s failed: %s", d.Name, e.Message)
+			return e, true
 		}
 	}
 }
 
-// AssertEventForPod asserts that a PodVerified event is created
-func (f *Framework) AssertEventForPod(reason string, p corev1.Pod) {
+// AssertEventForPod asserts that a PodVerified event is created.
+func (f *Framework) AssertEventForPod(reason string, p *corev1.Pod) {
 	if f.err != nil {
+		return
+	}
+	if p == nil {
 		return
 	}
 
