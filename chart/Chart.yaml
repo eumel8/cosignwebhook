@@ -3,7 +3,7 @@ name: cosignwebhook
 description: A Helm chart for Cosign Webhook Admission Controller
 type: application
 version: 5.1.0
-appVersion: "5.1.0"
+appVersion: "5.1.1"
 maintainers:
 - name: eumel8
   email: f.kloeker@telekom.de
