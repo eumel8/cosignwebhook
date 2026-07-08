@@ -6,6 +6,9 @@ metadata:
   name: {{ include "cosignwebhook.fullname" . }}
   labels:
     {{- include "cosignwebhook.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   endpoints:
     - port: metrics
