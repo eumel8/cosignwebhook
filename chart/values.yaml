@@ -60,6 +60,7 @@ service:
 
 serviceMonitor:
   enabled: false
+  additionalLabels: {}
 
 networkPolicy:
   enabled: false
