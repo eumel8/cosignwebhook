@@ -22,11 +22,23 @@ webhooks:
     - v1
     name: {{ .Values.admission.webhook.name }}
     matchPolicy: {{ .Values.admission.matchPolicy }}
+    {{- $releaseNs := .Release.Namespace | default "default" }}
+    {{- $exempt := dict }}
+    {{- range $key, $values := .Values.admission.exemptNamespaceLabels }}
+    {{- $_ := set $exempt $key (ternary $values (list $values) (kindIs "slice" $values)) }}
+    {{- end }}
+    {{- $nsNameKey := "kubernetes.io/metadata.name" }}
+    {{- $_ := set $exempt $nsNameKey (append (get $exempt $nsNameKey | default (list)) $releaseNs | uniq) }}
     namespaceSelector:
       matchExpressions:
-        - key: kubernetes.io/metadata.name
+        {{- range $key, $values := $exempt }}
+        - key: {{ $key | quote }}
           operator: NotIn
-          values: [{{ .Release.Namespace | default "default" }}{{- if .Values.admission.exclude }},{{ .Values.admission.exclude }}{{- end }}]
+          values:
+            {{- range $values }}
+            - {{ . | quote }}
+            {{- end }}
+        {{- end }}
     clientConfig:
       service:
         name: {{ include "cosignwebhook.fullname" . }}

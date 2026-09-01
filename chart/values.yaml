@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/eumel8/cosignwebhook/cosignwebhook
   pullPolicy: IfNotPresent
-  tag: 5.1.2
+  tag: 5.2.0
 
 imagePullSecrets: []
 logLevel: info
@@ -23,9 +23,19 @@ admission:
   # name of the webhook
   webhook:
     name: webhook.example.com
-  # list of excluded namespaces, comma-separated
-  # exclude: default, kube-system, cattle-system
-  exclude: ""
+  # namespaces exempted from admission, selected by namespace labels.
+  # Every entry renders a NotIn matchExpression in the webhook's
+  # namespaceSelector. The release namespace is always exempted implicitly,
+  # by default no additional namespace is excluded.
+  exemptNamespaceLabels: {}
+  #  kubernetes.io/metadata.name:
+  #    - kube-system
+  #    - calico-system
+  #    - tigera-operator
+  #    - cattle-gatekeeper-system
+  #  any other namespace label can be used as well, e.g.:
+  #  cosignwebhook.example.com/ignore:
+  #    - "true"
   matchPolicy: Equivalent
   timeoutSeconds: 10
 

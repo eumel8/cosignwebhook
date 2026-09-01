@@ -28,7 +28,7 @@ No re-signing is needed when upgrading from cosign v2 to v3.
 # Installation with Helm
 
 ```bash
-helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --version 5.1.0 --create-namespace
+helm -n cosignwebhook upgrade -i cosignwebhook oci://ghcr.io/eumel8/charts/cosignwebhook --version 5.2.0 --create-namespace
 ```
 
 this installation has some advantages:
@@ -38,6 +38,27 @@ this installation has some advantages:
 
 If you use your own image, you'll have to sign it first. Don't forget to change the `cosign.scwebhook.key` value to your
 public key, used to sign the image.
+
+## Excluding namespaces
+
+The release namespace of the webhook is always exempted from admission. To exempt additional namespaces, set
+`admission.exemptNamespaceLabels`. Every entry renders a `NotIn` match expression in the `namespaceSelector` of the
+`ValidatingWebhookConfiguration`, so any namespace label can be used:
+
+```yaml
+admission:
+  exemptNamespaceLabels:
+    kubernetes.io/metadata.name:
+      - kube-system
+      - calico-system
+      - tigera-operator
+      - cattle-gatekeeper-system
+    # any other namespace label works as well
+    cosignwebhook.example.com/ignore:
+      - "true"
+```
+
+By default no additional namespace is excluded.
 
 # Installation with manifest
 
@@ -67,6 +88,7 @@ possibilities.
 
 - [Cosign Webhook](#cosign-webhook)
 - [Installation with Helm](#installation-with-helm)
+  - [Excluding namespaces](#excluding-namespaces)
 - [Installation with manifest](#installation-with-manifest)
   - [Cert generation](#cert-generation)
   - [Validating your container images](#validating-your-container-images)
