@@ -1,6 +1,6 @@
 module github.com/eumel8/cosignwebhook
 
-go 1.25.7
+go 1.27.3
 
 require (
 	github.com/google/go-containerregistry v0.21.5
