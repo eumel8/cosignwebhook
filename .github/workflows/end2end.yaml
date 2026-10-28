@@ -10,11 +10,24 @@ jobs:
     - name: Install go
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25'
+        go-version: '1.27.3'
     - name: Install k3d
       run: |
         curl -s https://raw.githubusercontent.com/rancher/k3d/main/install.sh | bash
         k3d version
+    - name: Trust k3d registry in Docker daemon
+      # Docker 29 (ubuntu-26 runners) uses the containerd image store by default,
+      # which only speaks plain HTTP to registries listed as insecure-registries.
+      # The k3d registry is plain HTTP, so trust it before creating anything.
+      run: |
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json <<'EOF'
+        {
+          "insecure-registries": ["k3d-registry.localhost:5000"]
+        }
+        EOF
+        sudo systemctl restart docker
+        sudo systemctl is-active docker
     - name: Create Cluster & Registry
       run: |
           make e2e-cluster
