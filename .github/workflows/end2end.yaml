@@ -27,7 +27,7 @@ jobs:
         }
         EOF
         sudo systemctl restart docker
-        docker info --format 'insecure-registries: {{json .RegistryConfig.InsecureRegistries}}'
+        sudo systemctl is-active docker
     - name: Create Cluster & Registry
       run: |
           make e2e-cluster
