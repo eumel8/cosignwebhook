@@ -206,6 +206,28 @@ The implementation is based on the cosign CLI's output transformation:
 
 - [cosign verify.go - transformOutput](https://github.com/sigstore/cosign/blob/b7462fb60764850a789392429d3ba40f969d07db/cmd/cosign/cli/verify/verify.go#L263)
 
+## Proxy for internet registries
+
+When images are hosted on registries reachable only through a forward proxy
+(e.g. public internet registries), the webhook can route its outbound image and
+signature requests through that proxy. The verification path honors the standard
+`HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables
+(via `http.ProxyFromEnvironment`).
+
+Enable it in the Helm chart and use `noProxy` to keep internal registries direct,
+so only non-`*.telekom.de` images are sent through the proxy:
+
+```yaml
+proxy:
+  enabled: true
+  httpsProxy: "http://proxy.telekom.de:8080"
+  httpProxy: "http://proxy.telekom.de:8080"
+  noProxy: ".telekom.de"
+```
+
+These values are injected into both the webhook container (runtime admission
+verification) and the image-verification init containers.
+
 ## Credits
 
 * Bruno Bressi <bruno.bressi@telekom.de>

@@ -370,7 +370,10 @@ func (csh *CosignServerHandler) parseImageAndVerifier(image, pubKey string) (nam
 // buildRemoteOpts constructs the remote options for registry access.
 func (*CosignServerHandler) buildRemoteOpts(kc authn.Keychain, env []corev1.EnvVar) ([]ociremote.Option, error) {
 	remoteOpts := []ociremote.Option{
-		ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(kc)),
+		ociremote.WithRemoteOptions(
+			remote.WithAuthFromKeychain(kc),
+			remote.WithTransport(proxyTransport()),
+		),
 	}
 
 	if r := getCosignRepository(env); r != "" {
@@ -453,6 +456,21 @@ func (*CosignServerHandler) newVerifierForKey(publicKey crypto.PublicKey) (signa
 		log.Errorf("Unsupported public key type: %v", pub)
 		return nil, fmt.Errorf("unsupported public key type: %v", pub)
 	}
+}
+
+// proxyTransport returns an http.RoundTripper based on go-containerregistry's
+// DefaultTransport. It honors the standard HTTP_PROXY, HTTPS_PROXY and NO_PROXY
+// environment variables via http.ProxyFromEnvironment. This allows outbound
+// registry and signature traffic to be routed through a forward proxy for
+// images hosted on internet registries, while internal domains listed in
+// NO_PROXY (e.g. ".telekom.de") are reached directly.
+func proxyTransport() http.RoundTripper {
+	if t, ok := remote.DefaultTransport.(*http.Transport); ok {
+		tc := t.Clone()
+		tc.Proxy = http.ProxyFromEnvironment
+		return tc
+	}
+	return remote.DefaultTransport
 }
 
 // getCosignRepository returns the repository specified by the COSIGN_REPOSITORY environment variable
